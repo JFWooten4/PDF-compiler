@@ -1,4 +1,6 @@
-This repository provides a reusable Markdown-to-PDF renderer with configurable document formatting and presentation settings.
+# PDF Compiler
+
+A reusable Markdown-to-PDF renderer for polished, legal-style documents, with a browser configurator for presentation, metadata, validation, and output settings.
 
 ## Install
 
@@ -8,7 +10,7 @@ python -m pip install -r requirements.txt
 
 ## Web configurator
 
-The simplest interface is the local web app:
+Run the web app:
 
 ```bash
 python app.py
@@ -16,22 +18,28 @@ python app.py
 
 Then open `http://127.0.0.1:5000`.
 
-The configurator lets you upload or paste Markdown and choose presentation settings before rendering the PDF in a new tab. Current controls include:
+The configurator accepts an uploaded Markdown file or pasted Markdown and lets you control the generated PDF without modifying the source text. Settings include:
 
+- output filename
+- PDF metadata: document title, author, subject, and keywords
+- optional smart quotes in rendered text
 - uploaded logo or text wordmark
 - logo treatment: preserve as uploaded, auto-trim empty padding, or auto-trim and optimize for monochrome printing
-- first-page date and date format (`September 6, 2026`, `6 September 2026`, ISO, US numeric, or a custom `strftime` format)
+- first-page date and date format, including `September 6, 2026`, `4 May 2025`, ISO, US numeric, or a custom `strftime` format
 - submission subtitle such as `Submitted by email` or `Submitted via FedEx`
 - addressee text with an optional bordered letterhead box
-- PDF title and author metadata
-- optional exact Markdown heading to begin compilation after
-- output filename
+- separate first-page and remaining-page header text
+- footer page-count styles: none, `1`, `Page 1`, `1 of 5`, or `Page 1 of 5`
+- optional exact Markdown heading after which compilation begins
+- legal-style preflight validation before rendering
 
-The form stays open while the rendered PDF opens inline in a new tab, which makes it easy to adjust settings and render another version.
+The preflight validator reports line and column locations for required legal-style italics such as `_See_`, `_supra_`, `_infra_`, `_available at_`, and `_note_ 4`. Validation is read-only and does not rewrite Markdown.
+
+The rendered PDF opens inline in a new tab so the configurator remains available for another render.
 
 ## Command line
 
-The original renderer remains available directly:
+Render a Markdown file directly:
 
 ```bash
 python pdf_compiler.py path/to/document.md
@@ -47,10 +55,13 @@ Useful options:
 --wordmark TEXT        use a text wordmark when no logo is supplied
 --title TEXT           set PDF title metadata
 --author TEXT          set PDF author metadata
+--subject TEXT         set PDF subject metadata
+--keywords TEXT        set PDF keywords metadata
 --start-heading TEXT   compile only content after an exact Markdown heading
+--smart-quotes         use typographic quotes in rendered text
 ```
 
-For example, the original comment-letter workflow can be represented without hard-coded repository paths:
+For example:
 
 ```bash
 python pdf_compiler.py comment.md \
@@ -58,22 +69,28 @@ python pdf_compiler.py comment.md \
   --logo imgs/logo.png \
   --title "Comment Letter" \
   --author "WhyDRS" \
-  --start-heading "Letter"
+  --subject "Public comment" \
+  --start-heading "Letter" \
+  --smart-quotes
 ```
 
-## Current formatting
+## Formatting and document behavior
 
-The compiler currently supports:
+The compiler supports:
 
 - US Letter output with Times typography
 - legal-style numbering for nested Markdown headings
 - PDF outline/bookmark entries for headings
 - Markdown footnotes placed at the bottom of the page where referenced, including continuation pages
-- basic bold, italic, inline-code, links, block quotes, lists, rules, and local images
+- basic bold, italic, inline code, links, block quotes, lists, rules, and local images
 - optional first-page logo or text wordmark
-- configurable PDF title and author metadata
-- configurable first-page letterhead date and submission subtitle through the web interface
+- configurable PDF metadata
+- configurable first-page letterhead date and submission subtitle
 - optional boxed addressee block
+- separate first-page and later-page headers
+- selectable footer page-count formats using the final PDF page count
 - optional logo cleanup for padded assets and monochrome printing
+- optional smart-quote rendering without changing the Markdown source
+- read-only legal-style validation before PDF generation
 
-The renderer and its presentation settings are kept separate so the document engine can continue to grow without tying it to a particular interface.
+The rendering engine, presentation settings, and validation layer are kept separate so document generation does not alter source content.
