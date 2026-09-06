@@ -57,7 +57,7 @@ class SignatureSectionTests(unittest.TestCase):
             try:
                 self.assertIsNotNone(renderer._signature_asset)
                 with Image.open(renderer._signature_asset) as generated:
-                    self.assertEqual(generated.size, (168, 56))
+                    self.assertEqual(generated.size, (132, 50))
                     alpha = generated.getchannel("A")
                     self.assertIsNotNone(alpha.getbbox())
                 self.assertTrue(
