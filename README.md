@@ -33,7 +33,7 @@ The configurator accepts an uploaded Markdown file or pasted Markdown and lets y
 - optional exact Markdown heading after which compilation begins
 - legal-style preflight validation before rendering
 
-The preflight validator reports line and column locations for required legal-style italics such as `_See_`, `_supra_`, `_infra_`, `_available at_`, and `_note_ 4`. Validation is read-only and does not rewrite Markdown.
+The preflight validator reports line and column locations for required legal-style italics such as `_See_`, `_See, e.g.,_`, `_Id._`, `_Ibid._`, `_supra_`, `_infra_`, `_available at_`, and `_note_ 4`. These checks are case-insensitive. Validation is read-only and does not rewrite Markdown.
 
 The rendered PDF opens inline in a new tab so the configurator remains available for another render.
 

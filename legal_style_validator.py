@@ -35,8 +35,18 @@ INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
 RULES: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "See",
-        re.compile(r"\b(?:See(?:\s+(?:also|generally))?|But\s+see)\b"),
-        "Italicize legal citation signals such as _See_, _See also_, or _But see_.",
+        re.compile(
+            r"\b(?:but\s+see|see)"
+            r"(?:\s+(?:also|generally))?"
+            r"(?:,\s*e\.g\.,?)?",
+            re.IGNORECASE,
+        ),
+        "Italicize legal citation signals such as _See_, _See also_, _But see_, or _See, e.g.,_.",
+    ),
+    (
+        "Id./Ibid.",
+        re.compile(r"\b(?:id|ibid)\.", re.IGNORECASE),
+        "Italicize _Id._ and _Ibid._ when used in citations.",
     ),
     (
         "supra/infra",
@@ -64,6 +74,43 @@ def _covered(start: int, end: int, spans: list[tuple[int, int]]) -> bool:
     return any(span_start <= start and end <= span_end for span_start, span_end in spans)
 
 
+def _formatting_ranges(match: re.Match[str]) -> list[tuple[int, int]]:
+    """Return only the markup delimiters/tags for an emphasis match."""
+    text = match.group(0)
+    start, end = match.span()
+    if text.startswith("***") and text.endswith("***"):
+        return [(start, start + 3), (end - 3, end)]
+    if text.startswith("___") and text.endswith("___"):
+        return [(start, start + 3), (end - 3, end)]
+    if text.startswith("*") and text.endswith("*"):
+        return [(start, start + 1), (end - 1, end)]
+    if text.startswith("_") and text.endswith("_"):
+        return [(start, start + 1), (end - 1, end)]
+    return [
+        (start + tag.start(), start + tag.end())
+        for tag in re.finditer(r"</?(?:em|i)\b[^>]*>", text, re.IGNORECASE)
+    ]
+
+
+def _detection_text(line: str) -> tuple[str, list[int], list[tuple[int, int]]]:
+    """Strip emphasis markup for matching while preserving raw offsets."""
+    emphasis_matches = list(EMPHASIS_RE.finditer(line))
+    emphasis_spans = [(match.start(), match.end()) for match in emphasis_matches]
+    skipped: set[int] = set()
+    for match in emphasis_matches:
+        for start, end in _formatting_ranges(match):
+            skipped.update(range(start, end))
+
+    chars: list[str] = []
+    raw_positions: list[int] = []
+    for index, character in enumerate(line):
+        if index in skipped:
+            continue
+        chars.append(character)
+        raw_positions.append(index)
+    return "".join(chars), raw_positions, emphasis_spans
+
+
 def validate_legal_style(markdown: str) -> list[ValidationIssue]:
     """Return legal-style violations without modifying ``markdown``."""
     issues: list[ValidationIssue] = []
@@ -84,19 +131,23 @@ def validate_legal_style(markdown: str) -> list[ValidationIssue]:
         if in_fence:
             continue
 
-        emphasis_spans = _spans(EMPHASIS_RE, line)
+        detection, raw_positions, emphasis_spans = _detection_text(line)
         code_spans = _spans(INLINE_CODE_RE, line)
 
         for term, pattern, message in RULES:
-            for match in pattern.finditer(line):
-                if _covered(match.start(), match.end(), code_spans):
+            for match in pattern.finditer(detection):
+                if match.start() == match.end() or not raw_positions:
                     continue
-                if _covered(match.start(), match.end(), emphasis_spans):
+                raw_start = raw_positions[match.start()]
+                raw_end = raw_positions[match.end() - 1] + 1
+                if _covered(raw_start, raw_end, code_spans):
+                    continue
+                if _covered(raw_start, raw_end, emphasis_spans):
                     continue
                 issues.append(
                     ValidationIssue(
                         line=line_number,
-                        column=match.start() + 1,
+                        column=raw_start + 1,
                         term=term,
                         message=message,
                         excerpt=line.strip(),
