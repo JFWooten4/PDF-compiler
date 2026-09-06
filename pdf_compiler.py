@@ -270,38 +270,10 @@ class PdfRenderer:
         )
 
     def _create_signature_asset(self) -> Path:
-        """Create a transparent signature-over-line image for Markdown rendering."""
-        width, height = 168, 56
-        line_y = 45
-        canvas = PILImage.new("RGBA", (width, height), (255, 255, 255, 0))
-        draw = ImageDraw.Draw(canvas)
-        draw.line((2, line_y, width - 2, line_y), fill=(24, 24, 24, 230), width=1)
+        """Create a professionally normalized responsive signature block."""
+        from signature_layout import create_signature_asset
 
-        if self.signature:
-            signature = PILImage.open(self.signature).convert("RGBA")
-            original_alpha = signature.getchannel("A")
-            white = PILImage.new("RGBA", signature.size, "white")
-            white.paste(signature, mask=original_alpha)
-            diff = ImageChops.difference(
-                white.convert("RGB"),
-                PILImage.new("RGB", signature.size, "white"),
-            )
-            ink_alpha = ImageOps.grayscale(diff).point(
-                lambda value: 0 if value < 8 else min(255, value * 4)
-            )
-            signature.putalpha(ImageChops.multiply(original_alpha, ink_alpha))
-            bbox = signature.getchannel("A").getbbox()
-            if bbox:
-                signature = signature.crop(bbox)
-                signature.thumbnail((154, 42), PILImage.Resampling.LANCZOS)
-                x = 6
-                y = max(1, line_y - signature.height + 1)
-                canvas.alpha_composite(signature, (x, y))
-
-        with NamedTemporaryFile(prefix="pdf-compiler-signature-", suffix=".png", delete=False) as temp:
-            asset = Path(temp.name)
-        canvas.save(asset, format="PNG")
-        return asset
+        return create_signature_asset(self.signature)
 
     def _cleanup_signature_asset(self) -> None:
         finalizer = self._signature_asset_finalizer
