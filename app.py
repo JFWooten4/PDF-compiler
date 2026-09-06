@@ -128,6 +128,8 @@ def render_pdf():
             wordmark=request.form.get("wordmark", "").strip() or None,
             title=request.form.get("title", "").strip() or None,
             author=request.form.get("author", "").strip() or None,
+            subject=request.form.get("subject", "").strip() or None,
+            keywords=request.form.get("keywords", "").strip() or None,
             start_heading=request.form.get("start_heading", "").strip() or None,
             smart_quotes=truthy("smart_quotes"),
         )
