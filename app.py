@@ -14,6 +14,7 @@ from configured_renderer import (
     DATE_FORMATS,
     IMAGE_TREATMENTS,
     PAGE_NUMBER_STYLES,
+    SECTION_NUMBERING_STYLES,
     ConfiguredPdfRenderer,
     LetterSettings,
 )
@@ -50,6 +51,7 @@ def index():
         date_formats=DATE_FORMATS,
         image_treatments=IMAGE_TREATMENTS,
         page_number_styles=PAGE_NUMBER_STYLES,
+        section_numbering_styles=SECTION_NUMBERING_STYLES,
         today=date.today().isoformat(),
     )
 
@@ -117,6 +119,8 @@ def render_pdf():
             first_page_header=request.form.get("first_page_header", "").strip(),
             remaining_page_header=request.form.get("remaining_page_header", "").strip(),
             page_number_style=request.form.get("page_number_style", "none"),
+            include_toc=truthy("include_toc"),
+            section_numbering=request.form.get("section_numbering", "legal"),
         )
 
         output = root / "output.pdf"
