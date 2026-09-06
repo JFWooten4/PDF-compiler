@@ -34,10 +34,11 @@ The configurator accepts an uploaded Markdown file or pasted Markdown and lets y
 - footer page-count styles: none, `1`, `Page 1`, `1 of 5`, or `Page 1 of 5`
 - optional exact Markdown heading after which compilation begins
 - legal-style preflight validation before rendering
+- HTTP(S) URL validation before rendering
 
 Section structure is always written into the PDF outline/bookmark metadata. Turning off the visible table of contents only removes the TOC pages, and choosing no visible section numbering only removes numbering from displayed section labels; neither setting removes the PDF section outline.
 
-The preflight validator reports line and column locations for required legal-style italics such as `_See_`, `_See, e.g.,_`, `_Id._`, `_Ibid._`, `_supra_`, `_infra_`, `_available at_`, and `_note_ 4`. These checks are case-insensitive. Validation is read-only and does not rewrite Markdown.
+The preflight validator reports line and column locations for required legal-style italics such as `_See_`, `_See, e.g.,_`, `_Id._`, `_Ibid._`, `_supra_`, `_infra_`, `_available at_`, and `_note_ 4`. These checks are case-insensitive. It also checks HTTP(S) URLs for valid structure and resolvable public hostnames, rejecting malformed, nonexistent, localhost, and private-network targets. URL validation deliberately does not fetch arbitrary web pages from the server. Validation is read-only and does not rewrite Markdown.
 
 The rendered PDF opens inline in a new tab so the configurator remains available for another render.
 
@@ -91,7 +92,7 @@ python pdf_compiler.py comment.md \
   --smart-quotes
 ```
 
-The additional presentation controls for subject/keywords metadata, visible TOC, section-numbering style, letterhead, running headers, and footer page counts are provided by the web configurator and `ConfiguredPdfRenderer`.
+The additional presentation controls for subject/keywords metadata, visible TOC, section-numbering style, letterhead, running headers, footer page counts, and document preflight are provided by the web configurator and `ConfiguredPdfRenderer`.
 
 ## Formatting and document behavior
 
@@ -112,6 +113,6 @@ The compiler supports:
 - selectable footer page-count formats using the final PDF page count
 - optional logo cleanup for padded assets and monochrome printing
 - optional smart-quote rendering without changing the Markdown source
-- read-only legal-style validation before PDF generation
+- read-only legal-style and HTTP(S) URL validation before PDF generation
 
 The rendering engine, presentation settings, and validation layer are kept separate so document generation does not alter source content.
