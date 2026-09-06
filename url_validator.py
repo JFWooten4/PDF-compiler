@@ -26,7 +26,7 @@ class UrlValidationIssue:
         }
 
 
-URL_RE = re.compile(r"https?://[^\s<>\"'`]+", re.IGNORECASE)
+URL_RE = re.compile(r"https?://[^\s<>\"'`]*", re.IGNORECASE)
 INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
 
 Resolver = Callable[..., list[tuple]]
@@ -44,6 +44,27 @@ def _trim_url(raw: str) -> str:
                 value = value[:-1]
                 changed = True
     return value
+
+
+def validate_url_structure(url: str) -> str | None:
+    """Validate URL syntax without performing DNS resolution."""
+    if any(ord(character) < 32 for character in url):
+        return "URL contains control characters."
+    try:
+        parsed = urlsplit(url)
+    except ValueError:
+        return "URL could not be parsed."
+    if parsed.scheme.lower() not in {"http", "https"}:
+        return "URL must use http:// or https://."
+    if not parsed.hostname:
+        return "URL is missing a hostname."
+    try:
+        port = parsed.port
+    except ValueError:
+        return "URL contains an invalid port."
+    if port is not None and not 1 <= port <= 65535:
+        return "URL contains an invalid port."
+    return None
 
 
 def _public_host_error(hostname: str, resolver: Resolver) -> str | None:
@@ -88,23 +109,11 @@ def _public_host_error(hostname: str, resolver: Resolver) -> str | None:
 
 def validate_url(url: str, *, resolver: Resolver = socket.getaddrinfo) -> str | None:
     """Return an error message for an invalid/non-public HTTP(S) URL, else ``None``."""
-    if any(ord(character) < 32 for character in url):
-        return "URL contains control characters."
-    try:
-        parsed = urlsplit(url)
-    except ValueError:
-        return "URL could not be parsed."
-    if parsed.scheme.lower() not in {"http", "https"}:
-        return "URL must use http:// or https://."
-    if not parsed.hostname:
-        return "URL is missing a hostname."
-    try:
-        port = parsed.port
-    except ValueError:
-        return "URL contains an invalid port."
-    if port is not None and not 1 <= port <= 65535:
-        return "URL contains an invalid port."
-    return _public_host_error(parsed.hostname, resolver)
+    structural_error = validate_url_structure(url)
+    if structural_error:
+        return structural_error
+    parsed = urlsplit(url)
+    return _public_host_error(parsed.hostname or "", resolver)
 
 
 def validate_urls(markdown: str, *, resolver: Resolver = socket.getaddrinfo) -> list[UrlValidationIssue]:
@@ -133,23 +142,18 @@ def validate_urls(markdown: str, *, resolver: Resolver = socket.getaddrinfo) -> 
             if any(start <= match.start() < end for start, end in code_spans):
                 continue
             url = _trim_url(match.group(0))
-            if not url:
-                continue
-
-            try:
-                parsed = urlsplit(url)
-                host_key = (parsed.hostname or "").lower()
-            except ValueError:
-                host_key = ""
 
             structural_error = validate_url_structure(url)
             if structural_error:
                 error = structural_error
-            elif host_key in host_cache:
-                error = host_cache[host_key]
             else:
-                error = _public_host_error(parsed.hostname or "", resolver)
-                host_cache[host_key] = error
+                parsed = urlsplit(url)
+                host_key = (parsed.hostname or "").lower()
+                if host_key in host_cache:
+                    error = host_cache[host_key]
+                else:
+                    error = _public_host_error(parsed.hostname or "", resolver)
+                    host_cache[host_key] = error
 
             if error:
                 issues.append(
@@ -162,24 +166,3 @@ def validate_urls(markdown: str, *, resolver: Resolver = socket.getaddrinfo) -> 
                 )
 
     return issues
-
-
-def validate_url_structure(url: str) -> str | None:
-    """Validate URL syntax without performing DNS resolution."""
-    if any(ord(character) < 32 for character in url):
-        return "URL contains control characters."
-    try:
-        parsed = urlsplit(url)
-    except ValueError:
-        return "URL could not be parsed."
-    if parsed.scheme.lower() not in {"http", "https"}:
-        return "URL must use http:// or https://."
-    if not parsed.hostname:
-        return "URL is missing a hostname."
-    try:
-        port = parsed.port
-    except ValueError:
-        return "URL contains an invalid port."
-    if port is not None and not 1 <= port <= 65535:
-        return "URL contains an invalid port."
-    return None
