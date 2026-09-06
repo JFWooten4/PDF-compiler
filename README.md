@@ -34,11 +34,11 @@ The configurator accepts an uploaded Markdown file or pasted Markdown and lets y
 - footer page-count styles: none, `1`, `Page 1`, `1 of 5`, or `Page 1 of 5`
 - optional exact Markdown heading after which compilation begins
 - legal-style preflight validation before rendering
-- HTTP(S) URL validation before rendering
+- HTTP(S) URL validation and canonicalization checks before rendering
 
 Section structure is always written into the PDF outline/bookmark metadata. Turning off the visible table of contents only removes the TOC pages, and choosing no visible section numbering only removes numbering from displayed section labels; neither setting removes the PDF section outline.
 
-The preflight validator reports line and column locations for required legal-style italics such as `_See_`, `_See, e.g.,_`, `_Id._`, `_Ibid._`, `_supra_`, `_infra_`, `_available at_`, and `_note_ 4`. These checks are case-insensitive. It also checks HTTP(S) URLs for valid structure and resolvable public hostnames, rejecting malformed, nonexistent, localhost, and private-network targets. URL validation deliberately does not fetch arbitrary web pages from the server. Validation is read-only and does not rewrite Markdown.
+The preflight validator reports line and column locations for required legal-style italics such as `_See_`, `_See, e.g.,_`, `_Id._`, `_Ibid._`, `_supra_`, `_infra_`, `_available at_`, and `_note_ 4`. These checks are case-insensitive. It also checks HTTP(S) URLs for valid structure and resolvable public hostnames, rejecting malformed, nonexistent, localhost, and private-network targets. HTTP URLs must use HTTPS when the same public host can complete a valid TLS connection; HTTP remains allowed when HTTPS is unavailable. Root URLs omit the trailing slash (`https://example.com`, not `https://example.com/`), while trailing slashes on non-root paths remain allowed. Validation is read-only and does not rewrite Markdown.
 
 The rendered PDF opens inline in a new tab so the configurator remains available for another render.
 
