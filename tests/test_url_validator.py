@@ -28,6 +28,11 @@ class UrlValidatorTests(unittest.TestCase):
         self.assertEqual(issues[0].line, 1)
         self.assertEqual(issues[0].column, 5)
 
+    def test_flags_malformed_http_url(self):
+        issues = validate_urls("Broken: https://", resolver=public_resolver)
+        self.assertEqual(len(issues), 1)
+        self.assertIn("missing a hostname", issues[0].message)
+
     def test_rejects_private_network_targets(self):
         issues = validate_urls("http://localhost/test\nhttps://internal.example/test", resolver=private_resolver)
         self.assertEqual(len(issues), 2)
