@@ -19,6 +19,7 @@ from configured_renderer import (
     LetterSettings,
 )
 from legal_style_validator import validate_legal_style
+from url_validator import validate_urls
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024
@@ -44,6 +45,16 @@ def submitted_markdown() -> tuple[str | None, str | None]:
     return None, "Upload a Markdown file or paste Markdown text."
 
 
+def preflight_issues(markdown: str) -> list[dict[str, object]]:
+    """Run read-only document validation and return UI-ready issues."""
+    issues: list[dict[str, object]] = []
+    for issue in validate_legal_style(markdown):
+        issues.append({"category": "legal_style", **issue.as_dict()})
+    for issue in validate_urls(markdown):
+        issues.append({"category": "url", **issue.as_dict()})
+    return issues
+
+
 @app.get("/")
 def index():
     return render_template(
@@ -62,13 +73,8 @@ def validate_markdown():
     if error:
         return jsonify({"valid": False, "error": error, "issues": []}), 400
 
-    issues = validate_legal_style(markdown or "")
-    return jsonify(
-        {
-            "valid": not issues,
-            "issues": [issue.as_dict() for issue in issues],
-        }
-    )
+    issues = preflight_issues(markdown or "")
+    return jsonify({"valid": not issues, "issues": issues})
 
 
 @app.post("/render")
@@ -77,13 +83,13 @@ def render_pdf():
     if error:
         return jsonify({"error": error}), 400
 
-    issues = validate_legal_style(markdown or "")
+    issues = preflight_issues(markdown or "")
     if issues:
         return (
             jsonify(
                 {
-                    "error": "Legal-style preflight failed. The source was not modified and no PDF was generated.",
-                    "issues": [issue.as_dict() for issue in issues],
+                    "error": "Document preflight failed. The source was not modified and no PDF was generated.",
+                    "issues": issues,
                 }
             ),
             422,
