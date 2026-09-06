@@ -1,4 +1,4 @@
-"""Small local web UI for configuring and rendering PDFs."""
+"""Small web UI for configuring, validating, and rendering PDFs."""
 
 from __future__ import annotations
 
@@ -7,10 +7,11 @@ from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from flask import Flask, render_template, request, send_file
+from flask import Flask, jsonify, render_template, request, send_file
 from werkzeug.utils import secure_filename
 
 from configured_renderer import DATE_FORMATS, IMAGE_TREATMENTS, ConfiguredPdfRenderer, LetterSettings
+from legal_style_validator import validate_legal_style
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024
@@ -18,6 +19,22 @@ app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024
 
 def truthy(name: str) -> bool:
     return request.form.get(name) in {"1", "true", "on", "yes"}
+
+
+def submitted_markdown() -> tuple[str | None, str | None]:
+    source_upload = request.files.get("source")
+    markdown = request.form.get("markdown", "")
+    if source_upload and source_upload.filename:
+        try:
+            text = source_upload.read().decode("utf-8-sig")
+        except UnicodeDecodeError:
+            return None, "Markdown uploads must be UTF-8 text."
+        finally:
+            source_upload.stream.seek(0)
+        return text, None
+    if markdown.strip():
+        return markdown, None
+    return None, "Upload a Markdown file or paste Markdown text."
 
 
 @app.get("/")
@@ -30,22 +47,49 @@ def index():
     )
 
 
+@app.post("/validate")
+def validate_markdown():
+    markdown, error = submitted_markdown()
+    if error:
+        return jsonify({"valid": False, "error": error, "issues": []}), 400
+
+    issues = validate_legal_style(markdown or "")
+    return jsonify(
+        {
+            "valid": not issues,
+            "issues": [issue.as_dict() for issue in issues],
+        }
+    )
+
+
 @app.post("/render")
 def render_pdf():
-    source_upload = request.files.get("source")
-    markdown = request.form.get("markdown", "")
-    if not (source_upload and source_upload.filename) and not markdown.strip():
-        return "Upload a Markdown file or paste Markdown text.", 400
+    markdown, error = submitted_markdown()
+    if error:
+        return jsonify({"error": error}), 400
 
+    issues = validate_legal_style(markdown or "")
+    if issues:
+        return (
+            jsonify(
+                {
+                    "error": "Legal-style preflight failed. The source was not modified and no PDF was generated.",
+                    "issues": [issue.as_dict() for issue in issues],
+                }
+            ),
+            422,
+        )
+
+    source_upload = request.files.get("source")
     with TemporaryDirectory(prefix="pdf-compiler-") as temp:
         root = Path(temp)
         if source_upload and source_upload.filename:
             source_name = secure_filename(source_upload.filename) or "document.md"
             source = root / source_name
-            source_upload.save(source)
+            source.write_text(markdown or "", encoding="utf-8")
         else:
             source = root / "document.md"
-            source.write_text(markdown, encoding="utf-8")
+            source.write_text(markdown or "", encoding="utf-8")
 
         logo = None
         logo_upload = request.files.get("logo")

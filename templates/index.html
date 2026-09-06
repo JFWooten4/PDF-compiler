@@ -27,6 +27,10 @@
       --button-text: #ffffff;
       --shadow: rgba(28, 39, 61, .05);
       --focus: #6579a8;
+      --success: #17663a;
+      --success-bg: #edf8f1;
+      --error: #a52a2a;
+      --error-bg: #fff1f1;
     }
     :root[data-theme="dark"] {
       color-scheme: dark;
@@ -42,6 +46,10 @@
       --button-text: #0d1117;
       --shadow: rgba(0, 0, 0, .28);
       --focus: #8aa4dc;
+      --success: #7ee2a8;
+      --success-bg: #10261a;
+      --error: #ff9b9b;
+      --error-bg: #301515;
     }
     * { box-sizing: border-box; }
     html { background: var(--bg); }
@@ -64,10 +72,18 @@
     .check { display: flex; align-items: center; gap: 9px; font-weight: 600; }
     .check input { width: auto; }
     .preview { display: none; max-width: 230px; max-height: 90px; object-fit: contain; border: 1px dashed var(--control-border); border-radius: 8px; padding: 7px; background: var(--surface-subtle); }
-    .actions { display: flex; align-items: center; gap: 12px; }
+    .actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
     button { border: 1px solid transparent; border-radius: 10px; padding: 12px 18px; background: var(--button-bg); color: var(--button-text); font: inherit; font-weight: 700; cursor: pointer; }
     button:hover { opacity: .9; }
+    .secondary { border-color: var(--border); background: var(--surface); color: var(--text); }
     .theme-toggle { flex: 0 0 auto; padding: 9px 12px; border-color: var(--border); background: var(--surface); color: var(--text); box-shadow: 0 4px 12px var(--shadow); }
+    .validation { display: none; border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; background: var(--surface); }
+    .validation.pass { display: block; color: var(--success); background: var(--success-bg); }
+    .validation.fail { display: block; color: var(--error); background: var(--error-bg); }
+    .validation strong { display: block; margin-bottom: 6px; }
+    .validation ul { margin: 8px 0 0 20px; padding: 0; }
+    .validation li { margin: 6px 0; }
+    .validation code { color: inherit; }
     @media (max-width: 720px) {
       .grid { grid-template-columns: 1fr; }
       .full { grid-column: auto; }
@@ -80,12 +96,12 @@
   <div class="topbar">
     <div>
       <h1>PDF Compiler</h1>
-      <p class="intro">Configure the letterhead and document presentation, then render the PDF in a new tab.</p>
+      <p class="intro">Configure the letterhead and document presentation, validate legal style, then render the PDF.</p>
     </div>
     <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle color theme"></button>
   </div>
 
-  <form action="/render" method="post" enctype="multipart/form-data" target="_blank">
+  <form id="compiler-form" action="/render" method="post" enctype="multipart/form-data" target="_blank">
     <fieldset>
       <legend>Document</legend>
       <div class="grid">
@@ -163,9 +179,12 @@
       </div>
     </fieldset>
 
+    <div id="validation-result" class="validation" role="status" aria-live="polite"></div>
+
     <div class="actions">
-      <button type="submit">Render PDF</button>
-      <small>The PDF opens inline in a new tab so these settings stay on screen.</small>
+      <button id="validate-button" class="secondary" type="button">Validate legal style</button>
+      <button id="render-button" type="button">Render PDF</button>
+      <small>Rendering is blocked until the source passes preflight; validation never edits the Markdown.</small>
     </div>
   </form>
 </main>
@@ -200,6 +219,63 @@
     if (!file) { preview.style.display = 'none'; return; }
     preview.src = URL.createObjectURL(file);
     preview.style.display = 'block';
+  });
+
+  const form = document.getElementById('compiler-form');
+  const validationResult = document.getElementById('validation-result');
+  const validateButton = document.getElementById('validate-button');
+  const renderButton = document.getElementById('render-button');
+
+  function showValidation(result) {
+    validationResult.className = 'validation';
+    validationResult.replaceChildren();
+
+    const heading = document.createElement('strong');
+    if (result.error) {
+      validationResult.classList.add('fail');
+      heading.textContent = 'Preflight could not run';
+      validationResult.append(heading, document.createTextNode(result.error));
+      return false;
+    }
+    if (result.valid) {
+      validationResult.classList.add('pass');
+      heading.textContent = 'Preflight passed';
+      validationResult.append(heading, document.createTextNode('No required legal-style italics are missing.'));
+      return true;
+    }
+
+    validationResult.classList.add('fail');
+    heading.textContent = `Preflight found ${result.issues.length} issue${result.issues.length === 1 ? '' : 's'}`;
+    const list = document.createElement('ul');
+    for (const issue of result.issues) {
+      const item = document.createElement('li');
+      const location = document.createElement('code');
+      location.textContent = `line ${issue.line}, column ${issue.column}`;
+      item.append(location, document.createTextNode(` — ${issue.message}`));
+      list.append(item);
+    }
+    validationResult.append(heading, list);
+    return false;
+  }
+
+  async function runValidation() {
+    validateButton.disabled = true;
+    renderButton.disabled = true;
+    try {
+      const response = await fetch('/validate', { method: 'POST', body: new FormData(form) });
+      const result = await response.json();
+      return showValidation(result);
+    } catch (error) {
+      return showValidation({ error: `Validation request failed: ${error.message}` });
+    } finally {
+      validateButton.disabled = false;
+      renderButton.disabled = false;
+    }
+  }
+
+  validateButton.addEventListener('click', runValidation);
+  renderButton.addEventListener('click', async () => {
+    if (await runValidation()) form.submit();
   });
 </script>
 </body>
