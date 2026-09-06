@@ -32,6 +32,14 @@ IMAGE_TREATMENTS = {
     "print": "Auto-trim and optimize for monochrome printing",
 }
 
+PAGE_NUMBER_STYLES = {
+    "none": "No page count",
+    "number": "1",
+    "page_number": "Page 1",
+    "number_of_total": "1 of 5",
+    "page_number_of_total": "Page 1 of 5",
+}
+
 
 @dataclass(slots=True)
 class LetterSettings:
@@ -45,12 +53,17 @@ class LetterSettings:
     addressee: str = ""
     addressee_box: bool = True
     logo_treatment: str = "preserve"
+    first_page_header: str = ""
+    remaining_page_header: str = ""
+    page_number_style: str = "none"
 
     def __post_init__(self) -> None:
         if self.date_format not in DATE_FORMATS:
             raise ValueError(f"Unknown date format: {self.date_format}")
         if self.logo_treatment not in IMAGE_TREATMENTS:
             raise ValueError(f"Unknown image treatment: {self.logo_treatment}")
+        if self.page_number_style not in PAGE_NUMBER_STYLES:
+            raise ValueError(f"Unknown page-number style: {self.page_number_style}")
         if self.date_value:
             date.fromisoformat(self.date_value)
 
@@ -72,8 +85,23 @@ def format_header_date(settings: LetterSettings, *, today: date | None = None) -
     return value.strftime(settings.custom_date_format)
 
 
+def format_page_number(style: str, page: int, total: int) -> str:
+    """Format one footer page-count label."""
+    if style == "none":
+        return ""
+    if style == "number":
+        return str(page)
+    if style == "page_number":
+        return f"Page {page}"
+    if style == "number_of_total":
+        return f"{page} of {total}"
+    if style == "page_number_of_total":
+        return f"Page {page} of {total}"
+    raise ValueError(f"Unknown page-number style: {style}")
+
+
 class ConfiguredPdfRenderer(PdfRenderer):
-    """PdfRenderer with configurable letterhead and logo presentation."""
+    """PdfRenderer with configurable letterhead and page presentation."""
 
     def __init__(
         self,
@@ -84,7 +112,10 @@ class ConfiguredPdfRenderer(PdfRenderer):
         **kwargs,
     ):
         self.letter_settings = settings or LetterSettings()
+        self._total_pages = 0
         super().__init__(source, output, **kwargs)
+        if self.letter_settings.first_page_header or self.letter_settings.remaining_page_header:
+            self.top = max(self.top, 1.10 * inch)
 
     def _prepared_logo(self):
         """Return an ImageReader plus dimensions, keeping its BytesIO alive."""
@@ -146,9 +177,10 @@ class ConfiguredPdfRenderer(PdfRenderer):
         settings = self.letter_settings
         date_text = format_header_date(settings)
         subtitle = settings.submission_subtitle
+        first_header = settings.first_page_header.strip()
         prepared = self._prepared_logo()
         has_brand = prepared is not None or self.wordmark
-        has_header_text = bool(date_text or subtitle)
+        has_header_text = bool(date_text or subtitle or first_header)
         if not has_brand and not has_header_text:
             return
 
@@ -184,10 +216,99 @@ class ConfiguredPdfRenderer(PdfRenderer):
             canvas.setFont("Times-Italic", 9.5)
             canvas.drawRightString(text_x, self.page_height - 0.66 * inch, subtitle)
 
+        line_offset = 0.78
+        if first_header:
+            canvas.setFont("Times-Roman", 9.5)
+            canvas.drawCentredString(self.page_width / 2, self.page_height - 0.77 * inch, first_header)
+            line_offset = 0.92
+
         canvas.line(
             doc.leftMargin,
-            self.page_height - 0.78 * inch,
+            self.page_height - line_offset * inch,
             self.page_width - doc.rightMargin,
-            self.page_height - 0.78 * inch,
+            self.page_height - line_offset * inch,
         )
         canvas.restoreState()
+
+    def draw_remaining_header(self, canvas, doc):
+        text = self.letter_settings.remaining_page_header.strip()
+        if not text:
+            return
+        canvas.saveState()
+        canvas.setFillColor(colors.HexColor("#374151"))
+        canvas.setStrokeColor(colors.HexColor("#9AA3AE"))
+        canvas.setFont("Times-Roman", 9.5)
+        canvas.drawCentredString(self.page_width / 2, self.page_height - 0.55 * inch, text)
+        canvas.setLineWidth(0.5)
+        canvas.line(
+            doc.leftMargin,
+            self.page_height - 0.73 * inch,
+            self.page_width - doc.rightMargin,
+            self.page_height - 0.73 * inch,
+        )
+        canvas.restoreState()
+
+    def draw_page_number(self, canvas, page: int) -> None:
+        label = format_page_number(self.letter_settings.page_number_style, page, self._total_pages)
+        if not label:
+            return
+        canvas.saveState()
+        canvas.setFillColor(colors.HexColor("#4B5563"))
+        canvas.setFont("Times-Roman", 8.5)
+        canvas.drawCentredString(self.page_width / 2, 0.14 * inch, label)
+        canvas.restoreState()
+
+    def continuation_pages_needed(self, page_refs: dict[int, list[int]], base_pages: int) -> int:
+        extra = super().continuation_pages_needed(page_refs, base_pages)
+        self._total_pages = base_pages + extra
+        return extra
+
+    def page_drawer(self, page_refs: dict[int, list[int]]):
+        carry: list[Paragraph] = []
+
+        def draw(canvas, doc):
+            nonlocal carry
+            if doc.page == 1:
+                self.draw_branding(canvas, doc)
+            else:
+                self.draw_remaining_header(canvas, doc)
+
+            refs = page_refs.get(doc.page, [])
+            items = carry + [self.footnote_paragraph(number) for number in refs]
+            carry = []
+            if items:
+                canvas.saveState()
+                yline = 0.30 * inch + self.foot_top
+                canvas.setStrokeColor(colors.HexColor("#B8C0CC"))
+                canvas.setLineWidth(0.45)
+                canvas.line(doc.leftMargin, yline, self.page_width - doc.rightMargin, yline)
+                y = yline - 0.08 * inch
+                bottom_guard = 0.34 * inch if self.letter_settings.page_number_style != "none" else 0.24 * inch
+
+                for index, paragraph in enumerate(items):
+                    available = y - bottom_guard
+                    _, height = paragraph.wrap(self.max_foot_width, available)
+                    if height <= available:
+                        y -= height
+                        paragraph.drawOn(canvas, doc.leftMargin, y)
+                        y -= 0.02 * inch
+                        continue
+
+                    pieces = paragraph.split(self.max_foot_width, available)
+                    if pieces:
+                        first = pieces[0]
+                        _, first_height = first.wrap(self.max_foot_width, available)
+                        if first_height <= available:
+                            y -= first_height
+                            first.drawOn(canvas, doc.leftMargin, y)
+                            carry = pieces[1:] + items[index + 1 :]
+                            break
+                    carry = items[index:]
+                    break
+
+                canvas.restoreState()
+
+            self.draw_page_number(canvas, doc.page)
+
+        draw.carry = lambda: carry
+        return draw
