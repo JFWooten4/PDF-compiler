@@ -115,17 +115,31 @@
         <label class="full">Or paste Markdown
           <textarea id="markdown" name="markdown" placeholder="# Letter&#10;&#10;Your document…"></textarea>
         </label>
-        <label>PDF title
-          <input name="title" placeholder="Comment Letter">
-        </label>
-        <label>PDF author
-          <input name="author" placeholder="Organization or author">
-        </label>
         <label>Start after heading
           <input name="start_heading" placeholder="Letter">
           <small>Optional exact Markdown heading.</small>
         </label>
-        <label class="check full"><input type="checkbox" name="smart_quotes"> Use smart quotes in rendered PDF</label>
+        <label class="check"><input type="checkbox" name="smart_quotes"> Use smart quotes in rendered PDF</label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Output metadata</legend>
+      <div class="grid">
+        <label class="full">Document title
+          <input name="title" placeholder="Comment Letter">
+          <small>Stored as the PDF Title metadata. If blank, the source filename stem is used.</small>
+        </label>
+        <label>Author
+          <input name="author" placeholder="Organization or author">
+        </label>
+        <label>Subject
+          <input name="subject" placeholder="Document subject or filing description">
+        </label>
+        <label class="full">Keywords
+          <input name="keywords" placeholder="securities, transfer agents, comment letter">
+          <small>Stored in the PDF Keywords metadata; comma-separated terms work well.</small>
+        </label>
       </div>
     </fieldset>
 
