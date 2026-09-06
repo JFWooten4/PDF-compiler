@@ -2,7 +2,7 @@
 
 Go from Markdown to document, with flair.
 
-This repository is the reusable home for the Markdown-to-PDF renderer first developed in [WhyDRS/SEC-Comments#67](https://github.com/WhyDRS/SEC-Comments/pull/67). The migration removes the original OCC- and WhyDRS-specific paths and metadata while retaining the document-formatting behavior that made the renderer useful.
+This repository provides a reusable Markdown-to-PDF renderer with configurable document formatting and presentation settings.
 
 ## Install
 
