@@ -7,15 +7,25 @@ from datetime import date
 from html import escape
 from io import BytesIO
 from pathlib import Path
+import re
 
 from PIL import Image as PILImage
 from PIL import ImageChops, ImageOps
 from reportlab.lib import colors
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.utils import ImageReader
-from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import (
+    HRFlowable,
+    Image,
+    PageBreak,
+    Paragraph,
+    Spacer,
+    Table,
+    TableStyle,
+)
 
-from pdf_compiler import PdfRenderer
+from pdf_compiler import PdfRenderer, RefParagraph, TrackingDoc, alpha, roman
 
 
 DATE_FORMATS = {
@@ -40,6 +50,12 @@ PAGE_NUMBER_STYLES = {
     "page_number_of_total": "Page 1 of 5",
 }
 
+SECTION_NUMBERING_STYLES = {
+    "legal": "Legal — I.B.3.a.i",
+    "decimal": "Numbers — 1.2.3.4.5",
+    "none": "No visible section numbers",
+}
+
 
 @dataclass(slots=True)
 class LetterSettings:
@@ -56,6 +72,8 @@ class LetterSettings:
     first_page_header: str = ""
     remaining_page_header: str = ""
     page_number_style: str = "none"
+    include_toc: bool = False
+    section_numbering: str = "legal"
 
     def __post_init__(self) -> None:
         if self.date_format not in DATE_FORMATS:
@@ -64,6 +82,8 @@ class LetterSettings:
             raise ValueError(f"Unknown image treatment: {self.logo_treatment}")
         if self.page_number_style not in PAGE_NUMBER_STYLES:
             raise ValueError(f"Unknown page-number style: {self.page_number_style}")
+        if self.section_numbering not in SECTION_NUMBERING_STYLES:
+            raise ValueError(f"Unknown section-numbering style: {self.section_numbering}")
         if self.date_value:
             date.fromisoformat(self.date_value)
 
@@ -100,8 +120,55 @@ def format_page_number(style: str, page: int, total: int) -> str:
     raise ValueError(f"Unknown page-number style: {style}")
 
 
+def format_section_number(style: str, counts: dict[int, int], level: int) -> str:
+    """Format the section number for a Markdown heading level."""
+    if style == "none":
+        return ""
+
+    levels = list(range(2, level + 1))
+    while levels and counts.get(levels[0], 0) == 0:
+        levels.pop(0)
+    if not levels:
+        return ""
+
+    if style == "decimal":
+        return ".".join(str(counts.get(item, 0)) for item in levels)
+    if style != "legal":
+        raise ValueError(f"Unknown section-numbering style: {style}")
+
+    parts: list[str] = []
+    legal_formatters = (
+        lambda value: roman(value),
+        lambda value: alpha(value),
+        lambda value: str(value),
+        lambda value: alpha(value).lower(),
+        lambda value: roman(value).lower(),
+    )
+    start_level = levels[0]
+    for item in levels:
+        depth = item - start_level
+        formatter = legal_formatters[min(depth, len(legal_formatters) - 1)]
+        parts.append(formatter(counts.get(item, 0)))
+    return ".".join(parts)
+
+
+class SectionTrackingDoc(TrackingDoc):
+    """Tracking document that also records final page locations for headings."""
+
+    def __init__(self, *args, **kwargs):
+        self.heading_entries: list[tuple[str, int, int]] = []
+        super().__init__(*args, **kwargs)
+
+    def afterFlowable(self, flowable):
+        super().afterFlowable(flowable)
+        outline = getattr(flowable, "outline", None)
+        if outline:
+            title, level = outline
+            self.heading_entries.append((title, level, self.page))
+
+
 class ConfiguredPdfRenderer(PdfRenderer):
-    """PdfRenderer with configurable letterhead and page presentation."""
+    """PdfRenderer with configurable letterhead, sections, TOC, and page presentation."""
 
     def __init__(
         self,
@@ -130,17 +197,17 @@ class ConfiguredPdfRenderer(PdfRenderer):
         treatment = self.letter_settings.logo_treatment
         if treatment in {"trim", "print"}:
             background = PILImage.new("RGBA", image.size, "white")
-            alpha = image.getchannel("A")
-            background.paste(image, mask=alpha)
+            alpha_channel = image.getchannel("A")
+            background.paste(image, mask=alpha_channel)
             diff = ImageChops.difference(background.convert("RGB"), PILImage.new("RGB", image.size, "white"))
             bbox = diff.getbbox()
             if bbox:
                 image = image.crop(bbox)
         if treatment == "print":
-            alpha = image.getchannel("A")
+            alpha_channel = image.getchannel("A")
             gray = ImageOps.grayscale(image.convert("RGB"))
             gray = ImageOps.autocontrast(gray)
-            image = PILImage.merge("RGBA", (gray, gray, gray, alpha))
+            image = PILImage.merge("RGBA", (gray, gray, gray, alpha_channel))
 
         payload = BytesIO()
         image.save(payload, format="PNG")
@@ -170,11 +237,213 @@ class ConfiguredPdfRenderer(PdfRenderer):
         )
         return [table, Spacer(1, 10)]
 
-    def build_story(self, extra_pages: int = 0):
+    def _heading_label(self, level: int, heading: str, counts: dict[int, int]) -> str:
+        for deeper in range(level + 1, 7):
+            counts[deeper] = 0
+        counts[level] += 1
+        title = self.clean_heading(heading)
+        number = format_section_number(self.letter_settings.section_numbering, counts, level)
+        return f"{number} {title}" if number else title
+
+    def _collect_section_entries(self) -> list[tuple[int, str]]:
+        """Collect numbered section labels in source order, excluding fenced code."""
+        entries: list[tuple[int, str]] = []
+        counts = {level: 0 for level in range(2, 7)}
+        in_fence = False
+        fence_marker: str | None = None
+        for raw_line in self.body_text.splitlines():
+            stripped = raw_line.lstrip()
+            if stripped.startswith("```") or stripped.startswith("~~~"):
+                marker = stripped[:3]
+                if not in_fence:
+                    in_fence = True
+                    fence_marker = marker
+                elif marker == fence_marker:
+                    in_fence = False
+                    fence_marker = None
+                continue
+            if in_fence:
+                continue
+            match = re.match(r"^(#{2,6})\s+(.*)$", raw_line.rstrip())
+            if not match:
+                continue
+            level = len(match.group(1))
+            entries.append((level, self._heading_label(level, match.group(2), counts)))
+        return entries
+
+    def _toc_block(self, page_numbers: list[int] | None = None):
+        if not self.letter_settings.include_toc:
+            return []
+
+        entries = self._collect_section_entries()
+        title_style = ParagraphStyle(
+            "TOCTitleX",
+            parent=self.styles["H1X"],
+            fontSize=14,
+            leading=17,
+            spaceBefore=4,
+            spaceAfter=10,
+        )
+        page_style = ParagraphStyle(
+            "TOCPageX",
+            parent=self.styles["BodyX"],
+            fontSize=9.5,
+            leading=12,
+            alignment=2,
+        )
+        rows = []
+        for index, (level, label) in enumerate(entries):
+            label_style = ParagraphStyle(
+                f"TOCEntry{index}",
+                parent=self.styles["BodyX"],
+                fontSize=9.5,
+                leading=12,
+                leftIndent=max(0, level - 2) * 12,
+                spaceAfter=0,
+            )
+            rendered_label, _ = self.markdown_inline(label, False)
+            page = "—"
+            if page_numbers and index < len(page_numbers):
+                page = str(page_numbers[index])
+            rows.append([Paragraph(rendered_label, label_style), Paragraph(page, page_style)])
+
+        story = [Paragraph("Table of Contents", title_style)]
+        if rows:
+            width = self.page_width - self.left - self.right
+            table = Table(rows, colWidths=[width - 0.55 * inch, 0.55 * inch], hAlign="LEFT")
+            table.setStyle(
+                TableStyle(
+                    [
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                        ("RIGHTPADDING", (0, 0), (0, -1), 8),
+                        ("RIGHTPADDING", (1, 0), (1, -1), 0),
+                        ("TOPPADDING", (0, 0), (-1, -1), 2),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                    ]
+                )
+            )
+            story.append(table)
+        else:
+            story.append(Paragraph("No numbered sections found.", self.styles["BodyX"]))
+        story.extend([Spacer(1, 10), PageBreak()])
+        return story
+
+    def build_story(self, extra_pages: int = 0, toc_page_numbers: list[int] | None = None):
+        """Build the visible document while always attaching section outlines."""
         story = []
         if self.letter_settings.addressee:
             story.extend(self._addressee_block())
-        story.extend(super().build_story(extra_pages))
+        story.extend(self._toc_block(toc_page_numbers))
+
+        paragraph_lines: list[str] = []
+        quote_lines: list[str] = []
+        in_fence = False
+        fence_marker: str | None = None
+        counts = {level: 0 for level in range(2, 7)}
+
+        def flush_paragraph():
+            nonlocal paragraph_lines
+            if paragraph_lines:
+                text = " ".join(line.strip() for line in paragraph_lines if line.strip())
+                story.append(self.paragraph(text, self.styles["BodyX"]))
+                paragraph_lines = []
+
+        def flush_quote():
+            nonlocal quote_lines
+            if quote_lines:
+                chunks = []
+                refs = []
+                for quote in quote_lines:
+                    rendered, quote_refs = self.markdown_inline(quote.strip(), True)
+                    chunks.append(rendered)
+                    refs.extend(quote_refs)
+                story.append(RefParagraph("<br/>".join(chunks), self.styles["QuoteX"], refs))
+                quote_lines = []
+
+        def add_heading(level: int, heading: str):
+            label = self._heading_label(level, heading, counts)
+            rendered, refs = self.markdown_inline(label, True)
+            style = {
+                2: self.styles["H1X"],
+                3: self.styles["H2X"],
+                4: self.styles["H3X"],
+            }.get(level, self.styles["H4X"])
+            story.append(RefParagraph(rendered, style, refs, outline=(label, max(0, level - 2))))
+
+        for raw_line in self.body_text.splitlines():
+            line = raw_line.rstrip()
+            stripped = line.lstrip()
+
+            if stripped.startswith("```") or stripped.startswith("~~~"):
+                flush_paragraph()
+                flush_quote()
+                marker = stripped[:3]
+                if not in_fence:
+                    in_fence = True
+                    fence_marker = marker
+                elif marker == fence_marker:
+                    in_fence = False
+                    fence_marker = None
+                continue
+            if in_fence:
+                if line.strip():
+                    story.append(self.paragraph(line, self.styles["BodyX"]))
+                continue
+            if not line.strip():
+                flush_paragraph()
+                flush_quote()
+                continue
+            if line.strip() == "---":
+                flush_paragraph()
+                flush_quote()
+                story.extend(
+                    [
+                        Spacer(1, 4),
+                        HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#9AA3AE")),
+                        Spacer(1, 7),
+                    ]
+                )
+                continue
+
+            image_match = re.match(r"!\[[^\]]*\]\(([^)]+)\)", line.strip())
+            if image_match:
+                flush_paragraph()
+                flush_quote()
+                image_path = (self.source.parent / image_match.group(1)).resolve()
+                if image_path.exists():
+                    with PILImage.open(image_path) as image:
+                        width, height = image.size
+                    scale = min((6.45 * inch) / width, (2.4 * inch) / height, 1.0)
+                    story.extend([Image(str(image_path), width * scale, height * scale), Spacer(1, 8)])
+                continue
+
+            if line.startswith(">"):
+                flush_paragraph()
+                quote_lines.append(line.lstrip(">").strip())
+                continue
+
+            heading_match = re.match(r"^(#{2,6})\s+(.*)$", line)
+            if heading_match:
+                flush_paragraph()
+                flush_quote()
+                add_heading(len(heading_match.group(1)), heading_match.group(2))
+                continue
+
+            list_match = re.match(r"^(\s*)([-*]|\d+\.)\s+(.*)$", line)
+            if list_match:
+                flush_paragraph()
+                flush_quote()
+                marker = list_match.group(2) if list_match.group(2).endswith(".") else "-"
+                story.append(self.list_item(list_match.group(3), marker))
+                continue
+
+            paragraph_lines.append(line)
+
+        flush_paragraph()
+        flush_quote()
+        for _ in range(extra_pages):
+            story.extend([PageBreak(), Spacer(1, 1)])
         return story
 
     def apply_metadata(self, canvas) -> None:
@@ -326,3 +595,45 @@ class ConfiguredPdfRenderer(PdfRenderer):
 
         draw.carry = lambda: carry
         return draw
+
+    def document(self, path: Path) -> SectionTrackingDoc:
+        return SectionTrackingDoc(
+            str(path),
+            pagesize=(self.page_width, self.page_height),
+            leftMargin=self.left,
+            rightMargin=self.right,
+            topMargin=self.top,
+            bottomMargin=self.bottom,
+            title=self.title,
+            author=self.author,
+        )
+
+    def build(self) -> tuple[int, int, int]:
+        """Render twice so a visible TOC can use the final section page locations."""
+        self.output.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.output.with_suffix(".tmp.pdf")
+        if tmp.exists():
+            tmp.unlink()
+
+        first_doc = self.document(tmp)
+        first_doc.build(
+            self.build_story(),
+            onFirstPage=lambda _canvas, _doc: None,
+            onLaterPages=lambda _canvas, _doc: None,
+        )
+
+        toc_pages = [page for _title, _level, page in first_doc.heading_entries]
+        extra_pages = self.continuation_pages_needed(first_doc.page_refs, first_doc.page)
+        drawer = self.page_drawer(first_doc.page_refs)
+        final_doc = self.document(self.output)
+        final_doc.build(
+            self.build_story(extra_pages, toc_page_numbers=toc_pages),
+            onFirstPage=drawer,
+            onLaterPages=drawer,
+        )
+
+        if tmp.exists():
+            tmp.unlink()
+        if drawer.carry():
+            raise RuntimeError("Footnote continuation text remained after final page")
+        return final_doc.page, len(self.order), extra_pages
