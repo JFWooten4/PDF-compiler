@@ -20,7 +20,7 @@ from pdf_compiler import PdfRenderer
 
 DATE_FORMATS = {
     "month_day_year": "September 6, 2026",
-    "day_month_year": "6 September 2026",
+    "day_month_year": "4 May 2025",
     "iso": "2026-09-06",
     "us_numeric": "09/06/2026",
     "custom": "Custom strftime format",
@@ -93,52 +93,78 @@ class ConfiguredPdfRenderer(PdfRenderer):
 
         image = PILImage.open(self.logo).convert("RGBA")
         treatment = self.letter_settings.logo_treatment
-
         if treatment in {"trim", "print"}:
-            alpha_bbox = image.getchannel("A").getbbox()
-            full_bbox = (0, 0, image.width, image.height)
-            if alpha_bbox and alpha_bbox != full_bbox:
-                image = image.crop(alpha_bbox)
-            else:
-                white = PILImage.new("RGB", image.size, "white")
-                flattened = PILImage.new("RGB", image.size, "white")
-                flattened.paste(image.convert("RGB"), mask=image.getchannel("A"))
-                bbox = ImageChops.difference(flattened, white).getbbox()
-                if bbox:
-                    image = image.crop(bbox)
-
+            background = PILImage.new("RGBA", image.size, "white")
+            alpha = image.getchannel("A")
+            background.paste(image, mask=alpha)
+            diff = ImageChops.difference(background.convert("RGB"), PILImage.new("RGB", image.size, "white"))
+            bbox = diff.getbbox()
+            if bbox:
+                image = image.crop(bbox)
         if treatment == "print":
-            white = PILImage.new("RGBA", image.size, "white")
-            white.alpha_composite(image)
-            gray = ImageOps.autocontrast(ImageOps.grayscale(white.convert("RGB")))
-            image = gray.convert("RGBA")
+            alpha = image.getchannel("A")
+            gray = ImageOps.grayscale(image.convert("RGB"))
+            gray = ImageOps.autocontrast(gray)
+            image = PILImage.merge("RGBA", (gray, gray, gray, alpha))
 
-        buffer = BytesIO()
-        image.save(buffer, format="PNG")
-        buffer.seek(0)
-        return ImageReader(buffer), image.width, image.height, buffer
+        payload = BytesIO()
+        image.save(payload, format="PNG")
+        payload.seek(0)
+        width, height = image.size
+        return ImageReader(payload), width, height, payload
+
+    def _addressee_block(self):
+        if not self.letter_settings.addressee:
+            return []
+        text = "<br/>".join(escape(line) for line in self.letter_settings.addressee.splitlines())
+        paragraph = Paragraph(text, self.styles["BodyX"])
+        if not self.letter_settings.addressee_box:
+            return [paragraph, Spacer(1, 8)]
+
+        table = Table([[paragraph]], colWidths=[self.page_width - self.left - self.right])
+        table.setStyle(
+            TableStyle(
+                [
+                    ("BOX", (0, 0), (-1, -1), 0.7, colors.HexColor("#AAB2BD")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                ]
+            )
+        )
+        return [table, Spacer(1, 10)]
+
+    def build_story(self, extra_pages: int = 0):
+        story = []
+        if self.letter_settings.addressee:
+            story.extend(self._addressee_block())
+        story.extend(super().build_story(extra_pages))
+        return story
 
     def draw_branding(self, canvas, doc):
-        date_text = format_header_date(self.letter_settings)
-        subtitle = self.letter_settings.submission_subtitle.strip()
-        has_brand = (self.logo and self.logo.exists()) or self.wordmark
-        if not has_brand and not date_text and not subtitle:
+        settings = self.letter_settings
+        date_text = format_header_date(settings)
+        subtitle = settings.submission_subtitle
+        prepared = self._prepared_logo()
+        has_brand = prepared is not None or self.wordmark
+        has_header_text = bool(date_text or subtitle)
+        if not has_brand and not has_header_text:
             return
 
         canvas.saveState()
         canvas.setStrokeColor(colors.HexColor("#1F2937"))
         canvas.setLineWidth(0.7)
 
-        prepared = self._prepared_logo()
-        if prepared:
-            logo, width, height, _buffer = prepared
+        if prepared is not None:
+            reader, width, height, _payload = prepared
             target_width = 1.55 * inch
             target_height = target_width * height / width
             if target_height > 0.42 * inch:
                 target_height = 0.42 * inch
                 target_width = target_height * width / height
             canvas.drawImage(
-                logo,
+                reader,
                 doc.leftMargin,
                 self.page_height - 0.63 * inch,
                 width=target_width,
@@ -150,48 +176,18 @@ class ConfiguredPdfRenderer(PdfRenderer):
             canvas.setFont("Times-Bold", 18)
             canvas.drawString(doc.leftMargin, self.page_height - 0.58 * inch, self.wordmark)
 
-        right = self.page_width - doc.rightMargin
+        text_x = self.page_width - doc.rightMargin
         if date_text:
             canvas.setFont("Times-Roman", 10.5)
-            canvas.drawRightString(right, self.page_height - 0.48 * inch, date_text)
+            canvas.drawRightString(text_x, self.page_height - 0.50 * inch, date_text)
         if subtitle:
-            canvas.setFont("Times-Italic", 9.2)
-            canvas.drawRightString(right, self.page_height - 0.64 * inch, subtitle)
+            canvas.setFont("Times-Italic", 9.5)
+            canvas.drawRightString(text_x, self.page_height - 0.66 * inch, subtitle)
 
         canvas.line(
             doc.leftMargin,
             self.page_height - 0.78 * inch,
-            right,
+            self.page_width - doc.rightMargin,
             self.page_height - 0.78 * inch,
         )
         canvas.restoreState()
-
-    def _addressee_block(self):
-        raw = self.letter_settings.addressee.strip()
-        if not raw:
-            return []
-
-        lines = [escape(line) for line in raw.splitlines()]
-        paragraph = Paragraph("<br/>".join(lines), self.styles["BodyX"])
-        table = Table([[paragraph]], colWidths=[self.page_width - self.left - self.right])
-        commands = [
-            ("LEFTPADDING", (0, 0), (-1, -1), 10),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 10),
-            ("TOPPADDING", (0, 0), (-1, -1), 8),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ]
-        if self.letter_settings.addressee_box:
-            commands.extend(
-                [
-                    ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#9AA3AE")),
-                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F7F8FA")),
-                ]
-            )
-        table.setStyle(TableStyle(commands))
-        return [table, Spacer(1, 12)]
-
-    def build_story(self, extra_pages: int = 0):
-        story = super().build_story(extra_pages)
-        addressee = self._addressee_block()
-        return addressee + story if addressee else story
