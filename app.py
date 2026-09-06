@@ -119,6 +119,7 @@ def render_pdf():
             title=request.form.get("title", "").strip() or None,
             author=request.form.get("author", "").strip() or None,
             start_heading=request.form.get("start_heading", "").strip() or None,
+            smart_quotes=truthy("smart_quotes"),
         )
         renderer.build()
         payload = BytesIO(output.read_bytes())
