@@ -1,6 +1,6 @@
 # PDF Compiler
 
-A reusable Markdown-to-PDF renderer for polished, legal-style documents, with a browser configurator for presentation, metadata, validation, and output settings.
+A reusable Markdown-to-PDF renderer for polished, legal-style documents, with a browser configurator for presentation, metadata, validation, section structure, and output settings.
 
 ## Install
 
@@ -23,6 +23,8 @@ The configurator accepts an uploaded Markdown file or pasted Markdown and lets y
 - output filename
 - PDF metadata: document title, author, subject, and keywords
 - optional smart quotes in rendered text
+- section numbering: legal form such as `I.B.3.a.i`, decimal form such as `1.2.3.4.5`, or no visible numbering
+- optional visible table of contents using the generated section labels and page locations
 - uploaded logo or text wordmark
 - logo treatment: preserve as uploaded, auto-trim empty padding, or auto-trim and optimize for monochrome printing
 - first-page date and date format, including `September 6, 2026`, `4 May 2025`, ISO, US numeric, or a custom `strftime` format
@@ -32,6 +34,8 @@ The configurator accepts an uploaded Markdown file or pasted Markdown and lets y
 - footer page-count styles: none, `1`, `Page 1`, `1 of 5`, or `Page 1 of 5`
 - optional exact Markdown heading after which compilation begins
 - legal-style preflight validation before rendering
+
+Section structure is always written into the PDF outline/bookmark metadata. Turning off the visible table of contents only removes the TOC pages, and choosing no visible section numbering only removes numbering from displayed section labels; neither setting removes the PDF section outline.
 
 The preflight validator reports line and column locations for required legal-style italics such as `_See_`, `_See, e.g.,_`, `_Id._`, `_Ibid._`, `_supra_`, `_infra_`, `_available at_`, and `_note_ 4`. These checks are case-insensitive. Validation is read-only and does not rewrite Markdown.
 
@@ -55,8 +59,6 @@ Useful options:
 --wordmark TEXT        use a text wordmark when no logo is supplied
 --title TEXT           set PDF title metadata
 --author TEXT          set PDF author metadata
---subject TEXT         set PDF subject metadata
---keywords TEXT        set PDF keywords metadata
 --start-heading TEXT   compile only content after an exact Markdown heading
 --smart-quotes         use typographic quotes in rendered text
 ```
@@ -69,18 +71,20 @@ python pdf_compiler.py comment.md \
   --logo imgs/logo.png \
   --title "Comment Letter" \
   --author "WhyDRS" \
-  --subject "Public comment" \
   --start-heading "Letter" \
   --smart-quotes
 ```
+
+The additional presentation controls for subject/keywords metadata, visible TOC, section-numbering style, letterhead, running headers, and footer page counts are provided by the web configurator and `ConfiguredPdfRenderer`.
 
 ## Formatting and document behavior
 
 The compiler supports:
 
 - US Letter output with Times typography
-- legal-style numbering for nested Markdown headings
-- PDF outline/bookmark entries for headings
+- hierarchical section numbering for nested Markdown headings, including legal and decimal styles
+- PDF outline/bookmark entries for sections regardless of visible TOC settings
+- an optional visible table of contents with hierarchical indentation and page numbers
 - Markdown footnotes placed at the bottom of the page where referenced, including continuation pages
 - basic bold, italic, inline code, links, block quotes, lists, rules, and local images
 - optional first-page logo or text wordmark
