@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PDF Compiler</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #172033; background: #f5f7fb; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { max-width: 1040px; margin: 0 auto; padding: 32px 20px 56px; }
+    h1 { margin: 0 0 6px; font-size: 30px; }
+    .intro { margin: 0 0 26px; color: #596273; }
+    form { display: grid; gap: 18px; }
+    fieldset { border: 1px solid #d8deea; border-radius: 14px; background: white; padding: 20px; box-shadow: 0 8px 22px rgba(28, 39, 61, .05); }
+    legend { font-weight: 700; padding: 0 8px; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; }
+    .full { grid-column: 1 / -1; }
+    label { display: grid; gap: 6px; font-size: 14px; font-weight: 650; }
+    input, select, textarea { width: 100%; border: 1px solid #cbd3df; border-radius: 9px; padding: 10px 11px; background: white; color: inherit; font: inherit; }
+    textarea { min-height: 110px; resize: vertical; }
+    #markdown { min-height: 230px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+    small { color: #687285; font-weight: 400; }
+    .check { display: flex; align-items: center; gap: 9px; font-weight: 600; }
+    .check input { width: auto; }
+    .preview { display: none; max-width: 230px; max-height: 90px; object-fit: contain; border: 1px dashed #cbd3df; border-radius: 8px; padding: 7px; background: #fff; }
+    .actions { display: flex; align-items: center; gap: 12px; }
+    button { border: 0; border-radius: 10px; padding: 12px 18px; background: #172033; color: white; font: inherit; font-weight: 700; cursor: pointer; }
+    button:hover { opacity: .9; }
+    @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } .full { grid-column: auto; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>PDF Compiler</h1>
+  <p class="intro">Configure the letterhead and document presentation, then render the PDF in a new tab.</p>
+
+  <form action="/render" method="post" enctype="multipart/form-data" target="_blank">
+    <fieldset>
+      <legend>Document</legend>
+      <div class="grid">
+        <label>Markdown file
+          <input type="file" name="source" accept=".md,.markdown,text/markdown,text/plain">
+          <small>If supplied, this takes precedence over pasted Markdown.</small>
+        </label>
+        <label>Output filename
+          <input name="output_name" value="document.pdf">
+        </label>
+        <label class="full">Or paste Markdown
+          <textarea id="markdown" name="markdown" placeholder="# Letter&#10;&#10;Your document…"></textarea>
+        </label>
+        <label>PDF title
+          <input name="title" placeholder="Comment Letter">
+        </label>
+        <label>PDF author
+          <input name="author" placeholder="Organization or author">
+        </label>
+        <label>Start after heading
+          <input name="start_heading" placeholder="Letter">
+          <small>Optional exact Markdown heading.</small>
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Branding</legend>
+      <div class="grid">
+        <label>Logo image
+          <input id="logo" type="file" name="logo" accept="image/*">
+        </label>
+        <label>Logo treatment
+          <select name="logo_treatment">
+            {% for value, label in image_treatments.items() %}
+              <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>Text wordmark
+          <input name="wordmark" placeholder="Used when no logo is uploaded">
+        </label>
+        <div>
+          <img id="logo-preview" class="preview" alt="Logo preview">
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Letterhead</legend>
+      <div class="grid">
+        <label class="check full"><input type="checkbox" name="show_date" checked> Show date in header</label>
+        <label>Date
+          <input type="date" name="date_value" value="{{ today }}">
+        </label>
+        <label>Date format
+          <select id="date-format" name="date_format">
+            {% for value, label in date_formats.items() %}
+              <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label id="custom-date-row" class="full" hidden>Custom date format
+          <input name="custom_date_format" value="%B %d, %Y">
+          <small>Python strftime syntax.</small>
+        </label>
+        <label class="full">Submission subtitle
+          <input name="submission_subtitle" placeholder="Submitted by email">
+          <small>Appears under the date in the first-page header.</small>
+        </label>
+        <label class="full">Addressee
+          <textarea name="addressee" placeholder="Vanessa A. Countryman&#10;Secretary&#10;Securities and Exchange Commission&#10;100 F Street NE&#10;Washington, DC 20549"></textarea>
+        </label>
+        <label class="check full"><input type="checkbox" name="addressee_box" checked> Render addressee in a letterhead box</label>
+      </div>
+    </fieldset>
+
+    <div class="actions">
+      <button type="submit">Render PDF</button>
+      <small>The PDF opens inline in a new tab so these settings stay on screen.</small>
+    </div>
+  </form>
+</main>
+<script>
+  const format = document.getElementById('date-format');
+  const custom = document.getElementById('custom-date-row');
+  function updateCustomDate() { custom.hidden = format.value !== 'custom'; }
+  format.addEventListener('change', updateCustomDate);
+  updateCustomDate();
+
+  const logo = document.getElementById('logo');
+  const preview = document.getElementById('logo-preview');
+  logo.addEventListener('change', () => {
+    const file = logo.files && logo.files[0];
+    if (!file) { preview.style.display = 'none'; return; }
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = 'block';
+  });
+</script>
+</body>
+</html>
