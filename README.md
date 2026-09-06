@@ -10,7 +10,32 @@ This repository is the reusable home for the Markdown-to-PDF renderer first deve
 python -m pip install -r requirements.txt
 ```
 
-## Use
+## Web configurator
+
+The simplest interface is the local web app:
+
+```bash
+python app.py
+```
+
+Then open `http://127.0.0.1:5000`.
+
+The configurator lets you upload or paste Markdown and choose presentation settings before rendering the PDF in a new tab. Current controls include:
+
+- uploaded logo or text wordmark
+- logo treatment: preserve as uploaded, auto-trim empty padding, or auto-trim and optimize for monochrome printing
+- first-page date and date format (`September 6, 2026`, `6 September 2026`, ISO, US numeric, or a custom `strftime` format)
+- submission subtitle such as `Submitted by email` or `Submitted via FedEx`
+- addressee text with an optional bordered letterhead box
+- PDF title and author metadata
+- optional exact Markdown heading to begin compilation after
+- output filename
+
+The form stays open while the rendered PDF opens inline in a new tab, which makes it easy to adjust settings and render another version.
+
+## Command line
+
+The original renderer remains available directly:
 
 ```bash
 python pdf_compiler.py path/to/document.md
@@ -51,5 +76,8 @@ The compiler currently supports:
 - basic bold, italic, inline-code, links, block quotes, lists, rules, and local images
 - optional first-page logo or text wordmark
 - configurable PDF title and author metadata
+- configurable first-page letterhead date and submission subtitle through the web interface
+- optional boxed addressee block
+- optional logo cleanup for padded assets and monochrome printing
 
-The initial extraction is intentionally close to the renderer from PR #67. This repository is the place to grow the more general document interface discussed there, including structured letterhead fields such as organization/address information and submission dates.
+The renderer and its presentation settings are kept separate so the document engine can continue to grow without tying it to a particular interface.
