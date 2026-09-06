@@ -124,6 +124,24 @@
     </fieldset>
 
     <fieldset>
+      <legend>Sections &amp; TOC</legend>
+      <div class="grid">
+        <label>Section numbering
+          <select name="section_numbering">
+            {% for value, label in section_numbering_styles.items() %}
+              <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+          <small>Controls visible section labels in headings and, when enabled, the table of contents.</small>
+        </label>
+        <label class="check"><input type="checkbox" name="include_toc"> Include visible table of contents</label>
+        <div class="full">
+          <small>PDF outline/bookmarks are always generated from Markdown sections, even when the visible TOC is off or visible section numbering is disabled.</small>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
       <legend>Output metadata</legend>
       <div class="grid">
         <label class="full">Document title
