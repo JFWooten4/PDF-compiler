@@ -10,7 +10,13 @@ from tempfile import TemporaryDirectory
 from flask import Flask, jsonify, render_template, request, send_file
 from werkzeug.utils import secure_filename
 
-from configured_renderer import DATE_FORMATS, IMAGE_TREATMENTS, ConfiguredPdfRenderer, LetterSettings
+from configured_renderer import (
+    DATE_FORMATS,
+    IMAGE_TREATMENTS,
+    PAGE_NUMBER_STYLES,
+    ConfiguredPdfRenderer,
+    LetterSettings,
+)
 from legal_style_validator import validate_legal_style
 
 app = Flask(__name__)
@@ -43,6 +49,7 @@ def index():
         "index.html",
         date_formats=DATE_FORMATS,
         image_treatments=IMAGE_TREATMENTS,
+        page_number_styles=PAGE_NUMBER_STYLES,
         today=date.today().isoformat(),
     )
 
@@ -107,6 +114,9 @@ def render_pdf():
             addressee=request.form.get("addressee", "").strip(),
             addressee_box=truthy("addressee_box"),
             logo_treatment=request.form.get("logo_treatment", "preserve"),
+            first_page_header=request.form.get("first_page_header", "").strip(),
+            remaining_page_header=request.form.get("remaining_page_header", "").strip(),
+            page_number_style=request.form.get("page_number_style", "none"),
         )
 
         output = root / "output.pdf"
