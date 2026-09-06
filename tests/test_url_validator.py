@@ -5,7 +5,7 @@ from url_validator import validate_urls
 
 
 def public_resolver(host, port, **kwargs):
-    return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))]
+    return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", port or 0))]
 
 
 def missing_resolver(host, port, **kwargs):
@@ -13,7 +13,15 @@ def missing_resolver(host, port, **kwargs):
 
 
 def private_resolver(host, port, **kwargs):
-    return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 0))]
+    return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", port or 0))]
+
+
+def https_supported(host, port, resolver):
+    return True
+
+
+def https_unavailable(host, port, resolver):
+    return False
 
 
 class UrlValidatorTests(unittest.TestCase):
@@ -38,6 +46,50 @@ class UrlValidatorTests(unittest.TestCase):
         self.assertEqual(len(issues), 2)
         self.assertIn("localhost", issues[0].message)
         self.assertIn("private", issues[1].message)
+
+    def test_prefers_https_when_available(self):
+        issues = validate_urls(
+            "Source: http://example.com/path",
+            resolver=public_resolver,
+            https_checker=https_supported,
+        )
+        self.assertEqual(len(issues), 1)
+        self.assertIn("https://example.com/path", issues[0].message)
+        self.assertIn("HTTPS is available", issues[0].message)
+
+    def test_allows_http_when_https_is_unavailable(self):
+        issues = validate_urls(
+            "Source: http://example.com/path",
+            resolver=public_resolver,
+            https_checker=https_unavailable,
+        )
+        self.assertEqual(issues, [])
+
+    def test_root_url_must_not_end_in_slash(self):
+        issues = validate_urls(
+            "Source: https://example.com/",
+            resolver=public_resolver,
+        )
+        self.assertEqual(len(issues), 1)
+        self.assertIn("https://example.com", issues[0].message)
+        self.assertIn("root URLs must not end", issues[0].message)
+
+    def test_http_root_url_reports_combined_canonical_form(self):
+        issues = validate_urls(
+            "Source: http://example.com/",
+            resolver=public_resolver,
+            https_checker=https_supported,
+        )
+        self.assertEqual(len(issues), 1)
+        self.assertIn("https://example.com", issues[0].message)
+        self.assertIn("HTTPS is available", issues[0].message)
+        self.assertIn("root URLs must not end", issues[0].message)
+
+    def test_non_root_trailing_slash_is_allowed(self):
+        self.assertEqual(
+            validate_urls("https://example.com/path/", resolver=public_resolver),
+            [],
+        )
 
     def test_ignores_inline_and_fenced_code(self):
         markdown = """`https://bad.invalid/x`
