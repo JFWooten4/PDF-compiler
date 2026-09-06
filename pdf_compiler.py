@@ -158,6 +158,8 @@ def extract_footnotes(markdown: str) -> tuple[str, dict[str, str]]:
 
 class PdfRenderer:
     url_re = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+    note_ref_re = re.compile(r"\[\^([^\]]+)\]")
+    note_number_ref_re = re.compile(r"\{\{\s*([^{}]+?)\s*\}\}")
 
     def __init__(
         self,
@@ -192,6 +194,7 @@ class PdfRenderer:
         raw = self.source.read_text(encoding="utf-8")
         body = extract_body(raw, start_heading)
         self.body_text, self.note_defs = extract_footnotes(body)
+        self.prime_note_numbers()
         self.styles = self._styles()
 
         self.page_width, self.page_height = LETTER
@@ -305,6 +308,21 @@ class PdfRenderer:
             self.order.append(key)
         return self.nums[key]
 
+    def prime_note_numbers(self) -> None:
+        """Assign final note numbers from real footnote citations before rendering."""
+        for match in self.note_ref_re.finditer(self.body_text):
+            self.note_number(match.group(1))
+
+    def interpolate_note_numbers(self, text: str) -> str:
+        """Replace ``{{key}}`` with an already-assigned footnote number."""
+
+        def replace(match: re.Match[str]) -> str:
+            key = match.group(1).strip()
+            number = self.nums.get(key)
+            return str(number) if number is not None else match.group(0)
+
+        return self.note_number_ref_re.sub(replace, text)
+
     def markdown_inline(self, text: str, refs_on: bool = True) -> tuple[str, list[int]]:
         refs: list[int] = []
         if refs_on:
@@ -314,10 +332,11 @@ class PdfRenderer:
                 refs.append(number)
                 return f"@@FN{number}@@"
 
-            text = re.sub(r"\[\^([^\]]+)\]", replace_ref, text)
+            text = self.note_ref_re.sub(replace_ref, text)
         else:
-            text = re.sub(r"\[\^([^\]]+)\]", "", text)
+            text = self.note_ref_re.sub("", text)
 
+        text = self.interpolate_note_numbers(text)
         text = text.replace("&nbsp;", " ")
         text = self.url_re.sub(lambda m: f"{m.group(1)} ({m.group(2)})", text)
         if self.smart_quotes:
