@@ -96,7 +96,7 @@
   <div class="topbar">
     <div>
       <h1>PDF Compiler</h1>
-      <p class="intro">Configure the letterhead and document presentation, validate legal style, then render the PDF.</p>
+      <p class="intro">Configure document presentation, run the read-only preflight, then render the PDF.</p>
     </div>
     <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle color theme"></button>
   </div>
@@ -237,7 +237,7 @@
     <div id="validation-result" class="validation" role="status" aria-live="polite"></div>
 
     <div class="actions">
-      <button id="validate-button" class="secondary" type="button">Validate legal style</button>
+      <button id="validate-button" class="secondary" type="button">Validate document</button>
       <button id="render-button" type="button">Render PDF</button>
       <small>Rendering is blocked until the source passes preflight; validation never edits the Markdown.</small>
     </div>
@@ -295,7 +295,7 @@
     if (result.valid) {
       validationResult.classList.add('pass');
       heading.textContent = 'Preflight passed';
-      validationResult.append(heading, document.createTextNode('No required legal-style italics are missing.'));
+      validationResult.append(heading, document.createTextNode('Legal-style and URL checks passed.'));
       return true;
     }
 
