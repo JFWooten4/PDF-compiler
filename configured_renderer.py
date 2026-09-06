@@ -109,9 +109,13 @@ class ConfiguredPdfRenderer(PdfRenderer):
         output: Path,
         *,
         settings: LetterSettings | None = None,
+        subject: str | None = None,
+        keywords: str | None = None,
         **kwargs,
     ):
         self.letter_settings = settings or LetterSettings()
+        self.subject = subject or ""
+        self.keywords = keywords or ""
         self._total_pages = 0
         super().__init__(source, output, **kwargs)
         if self.letter_settings.first_page_header or self.letter_settings.remaining_page_header:
@@ -172,6 +176,15 @@ class ConfiguredPdfRenderer(PdfRenderer):
             story.extend(self._addressee_block())
         story.extend(super().build_story(extra_pages))
         return story
+
+    def apply_metadata(self, canvas) -> None:
+        """Apply configurable PDF document-info metadata to the output canvas."""
+        canvas.setTitle(self.title)
+        canvas.setAuthor(self.author)
+        if self.subject:
+            canvas.setSubject(self.subject)
+        if self.keywords:
+            canvas.setKeywords(self.keywords)
 
     def draw_branding(self, canvas, doc):
         settings = self.letter_settings
@@ -268,6 +281,7 @@ class ConfiguredPdfRenderer(PdfRenderer):
 
         def draw(canvas, doc):
             nonlocal carry
+            self.apply_metadata(canvas)
             if doc.page == 1:
                 self.draw_branding(canvas, doc)
             else:
