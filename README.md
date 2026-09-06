@@ -41,6 +41,22 @@ The preflight validator reports line and column locations for required legal-sty
 
 The rendered PDF opens inline in a new tab so the configurator remains available for another render.
 
+## Footnote number references
+
+Markdown footnote keys can be reused as stable references to the final rendered note number. A normal footnote citation assigns the number:
+
+```markdown
+The first proposition.[^ref-a]
+```
+
+Elsewhere in the document, `{{ref-a}}` is replaced with that note number as plain text:
+
+```markdown
+_See supra note_ {{ref-a}}.
+```
+
+If `ref-a` is ultimately note 7, the rendered text reads `See supra note 7.` The compiler determines numbers from real `[^key]` citations before rendering, so `{{key}}` does not create a footnote or change numbering and can safely appear before or after the citation. An unknown `{{key}}` is left visible rather than being assigned a number.
+
 ## Command line
 
 Render a Markdown file directly:
@@ -86,6 +102,7 @@ The compiler supports:
 - PDF outline/bookmark entries for sections regardless of visible TOC settings
 - an optional visible table of contents with hierarchical indentation and page numbers
 - Markdown footnotes placed at the bottom of the page where referenced, including continuation pages
+- `{{key}}` interpolation for stable references to final Markdown footnote numbers
 - basic bold, italic, inline code, links, block quotes, lists, rules, and local images
 - optional first-page logo or text wordmark
 - configurable PDF metadata
