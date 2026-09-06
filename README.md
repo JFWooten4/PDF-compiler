@@ -1,7 +1,3 @@
-# PDF Compiler
-
-Go from Markdown to document, with flair.
-
 This repository provides a reusable Markdown-to-PDF renderer with configurable document formatting and presentation settings.
 
 ## Install
