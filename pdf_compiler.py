@@ -97,6 +97,23 @@ def alpha(number: int) -> str:
     return output
 
 
+def smarten_quotes(text: str) -> str:
+    """Return typographic quotes without changing inline-code spans."""
+
+    def transform(segment: str) -> str:
+        # Apostrophes inside words are always closing single quotes.
+        segment = re.sub(r"(?<=\w)'(?=\w)", "’", segment)
+        # Opening marks normally follow whitespace or opening punctuation.
+        segment = re.sub(r'(^|[\s(\[{—-])"(?=\S)', r"\1“", segment)
+        segment = segment.replace('"', "”")
+        segment = re.sub(r"(^|[\s(\[{—-])'(?=\S)", r"\1‘", segment)
+        segment = segment.replace("'", "’")
+        return segment
+
+    parts = re.split(r"(`[^`\n]*`)", text)
+    return "".join(part if index % 2 else transform(part) for index, part in enumerate(parts))
+
+
 def extract_body(markdown: str, start_heading: str | None = None) -> str:
     """Return all Markdown, or only the content after an exact heading."""
     if not start_heading:
@@ -152,6 +169,7 @@ class PdfRenderer:
         title: str | None = None,
         author: str | None = None,
         start_heading: str | None = None,
+        smart_quotes: bool = False,
     ):
         self.source = source
         self.output = output
@@ -159,6 +177,7 @@ class PdfRenderer:
         self.wordmark = wordmark
         self.title = title or source.stem
         self.author = author or ""
+        self.smart_quotes = smart_quotes
         self.order: list[str] = []
         self.nums: dict[str, int] = {}
 
@@ -301,6 +320,8 @@ class PdfRenderer:
 
         text = text.replace("&nbsp;", " ")
         text = self.url_re.sub(lambda m: f"{m.group(1)} ({m.group(2)})", text)
+        if self.smart_quotes:
+            text = smarten_quotes(text)
         text = html.escape(text, quote=False)
         text = re.sub(r"\*\*([^*]+)\*\*", r"<b>\1</b>", text)
         text = re.sub(r"__([^_]+)__", r"<b>\1</b>", text)
@@ -643,6 +664,11 @@ def main() -> int:
         "--start-heading",
         help="Compile only content after an exact Markdown heading",
     )
+    parser.add_argument(
+        "--smart-quotes",
+        action="store_true",
+        help="Convert straight quotes to typographic quotes in rendered text",
+    )
     args = parser.parse_args()
 
     output = args.output or args.source.with_suffix(".pdf")
@@ -654,6 +680,7 @@ def main() -> int:
         title=args.title,
         author=args.author,
         start_heading=args.start_heading,
+        smart_quotes=args.smart_quotes,
     )
     pages, footnotes, continuations = renderer.build()
     print(output)
