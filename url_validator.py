@@ -6,8 +6,9 @@ from dataclasses import dataclass
 import ipaddress
 import re
 import socket
+import ssl
 from typing import Callable
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +31,7 @@ URL_RE = re.compile(r"https?://[^\s<>\"'`]*", re.IGNORECASE)
 INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
 
 Resolver = Callable[..., list[tuple]]
+HttpsChecker = Callable[[str, int, Resolver], bool]
 
 
 def _trim_url(raw: str) -> str:
@@ -107,19 +109,103 @@ def _public_host_error(hostname: str, resolver: Resolver) -> str | None:
     return None
 
 
-def validate_url(url: str, *, resolver: Resolver = socket.getaddrinfo) -> str | None:
-    """Return an error message for an invalid/non-public HTTP(S) URL, else ``None``."""
+def _supports_https(hostname: str, port: int, resolver: Resolver) -> bool:
+    """Return whether a public host completes a certificate-valid TLS connection."""
+    try:
+        answers = resolver(hostname, port, type=socket.SOCK_STREAM)
+    except (socket.gaierror, OSError):
+        return False
+
+    context = ssl.create_default_context()
+    for family, socktype, proto, _canonname, sockaddr in answers:
+        if not sockaddr:
+            continue
+        try:
+            address = ipaddress.ip_address(sockaddr[0])
+        except ValueError:
+            continue
+        if not address.is_global:
+            continue
+
+        destination = list(sockaddr)
+        destination[1] = port
+        raw_socket = socket.socket(family, socktype or socket.SOCK_STREAM, proto)
+        raw_socket.settimeout(2.0)
+        try:
+            raw_socket.connect(tuple(destination))
+            with context.wrap_socket(raw_socket, server_hostname=hostname):
+                return True
+        except (OSError, ssl.SSLError):
+            raw_socket.close()
+    return False
+
+
+def _canonical_url_error(
+    url: str,
+    *,
+    resolver: Resolver,
+    https_checker: HttpsChecker,
+    https_cache: dict[tuple[str, int], bool],
+) -> str | None:
+    """Return an error when a valid public URL is not in canonical form."""
+    parsed = urlsplit(url)
+    scheme = parsed.scheme.lower()
+    path = parsed.path
+    reasons: list[str] = []
+
+    if path == "/":
+        path = ""
+        reasons.append("root URLs must not end in a trailing slash")
+
+    if scheme == "http":
+        host = parsed.hostname or ""
+        https_port = parsed.port or 443
+        cache_key = (host.lower(), https_port)
+        if cache_key not in https_cache:
+            https_cache[cache_key] = https_checker(host, https_port, resolver)
+        if https_cache[cache_key]:
+            scheme = "https"
+            reasons.insert(0, "HTTPS is available for this host")
+
+    if not reasons:
+        return None
+
+    canonical = urlunsplit((scheme, parsed.netloc, path, parsed.query, parsed.fragment))
+    return f"Use canonical URL {canonical!r}: {'; '.join(reasons)}."
+
+
+def validate_url(
+    url: str,
+    *,
+    resolver: Resolver = socket.getaddrinfo,
+    https_checker: HttpsChecker = _supports_https,
+) -> str | None:
+    """Return an error message for an invalid, non-public, or noncanonical URL."""
     structural_error = validate_url_structure(url)
     if structural_error:
         return structural_error
     parsed = urlsplit(url)
-    return _public_host_error(parsed.hostname or "", resolver)
+    public_error = _public_host_error(parsed.hostname or "", resolver)
+    if public_error:
+        return public_error
+    return _canonical_url_error(
+        url,
+        resolver=resolver,
+        https_checker=https_checker,
+        https_cache={},
+    )
 
 
-def validate_urls(markdown: str, *, resolver: Resolver = socket.getaddrinfo) -> list[UrlValidationIssue]:
+def validate_urls(
+    markdown: str,
+    *,
+    resolver: Resolver = socket.getaddrinfo,
+    https_checker: HttpsChecker = _supports_https,
+) -> list[UrlValidationIssue]:
     """Validate HTTP(S) URLs outside code spans without modifying ``markdown``."""
     issues: list[UrlValidationIssue] = []
     host_cache: dict[str, str | None] = {}
+    https_cache: dict[tuple[str, int], bool] = {}
     in_fence = False
     fence_marker: str | None = None
 
@@ -154,6 +240,14 @@ def validate_urls(markdown: str, *, resolver: Resolver = socket.getaddrinfo) -> 
                 else:
                     error = _public_host_error(parsed.hostname or "", resolver)
                     host_cache[host_key] = error
+
+                if error is None:
+                    error = _canonical_url_error(
+                        url,
+                        resolver=resolver,
+                        https_checker=https_checker,
+                        https_cache=https_cache,
+                    )
 
             if error:
                 issues.append(
