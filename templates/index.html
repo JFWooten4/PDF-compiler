@@ -77,6 +77,26 @@
     button:hover { opacity: .9; }
     .secondary { border-color: var(--border); background: var(--surface); color: var(--text); }
     .theme-toggle { flex: 0 0 auto; padding: 9px 12px; border-color: var(--border); background: var(--surface); color: var(--text); box-shadow: 0 4px 12px var(--shadow); }
+    .bug-report {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 10;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 10px 14px;
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 6px 18px var(--shadow);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .bug-report:hover { opacity: .9; }
+    .bug-report:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .validation { display: none; border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; background: var(--surface); }
     .validation.pass { display: block; color: var(--success); background: var(--success-bg); }
     .validation.fail { display: block; color: var(--error); background: var(--error-bg); }
@@ -88,6 +108,7 @@
       .grid { grid-template-columns: 1fr; }
       .full { grid-column: auto; }
       .topbar { align-items: center; }
+      .bug-report { right: 12px; bottom: 12px; }
     }
   </style>
 </head>
@@ -243,6 +264,7 @@
     </div>
   </form>
 </main>
+<a class="bug-report" href="https://github.com/JFWooten4/PDF-compiler/issues" target="_blank" rel="noopener noreferrer" aria-label="Report a bug on GitHub">🐛 Report a bug</a>
 <script>
   const themeToggle = document.getElementById('theme-toggle');
 
