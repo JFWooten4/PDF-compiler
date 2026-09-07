@@ -136,7 +136,6 @@ def render_pdf():
             author=request.form.get("author", "").strip() or None,
             subject=request.form.get("subject", "").strip() or None,
             keywords=request.form.get("keywords", "").strip() or None,
-            start_heading=request.form.get("start_heading", "").strip() or None,
             smart_quotes=truthy("smart_quotes"),
         )
         renderer.build()

@@ -33,7 +33,6 @@ The configurator accepts an uploaded Markdown file or pasted Markdown and lets y
 - addressee text with an optional bordered letterhead box
 - separate first-page and remaining-page header text
 - footer page-count styles: none, `1`, `Page 1`, `1 of 5`, or `Page 1 of 5`
-- optional exact Markdown heading after which compilation begins
 - optional legal-style preflight validation; findings do not block PDF rendering
 - optional HTTP(S) URL validation and canonicalization checks
 
@@ -41,7 +40,7 @@ Section structure is always written into the PDF outline/bookmark metadata. Turn
 
 The preflight validator reports line and column locations for required legal-style italics such as `_See_`, `_See, e.g.,_`, `_Id._`, `_Ibid._`, `_supra_`, `_infra_`, `_available at_`, and `_note_ 4`. These checks are case-insensitive. It also checks HTTP(S) URLs for valid structure and resolvable public hostnames, rejecting malformed, nonexistent, localhost, and private-network targets. HTTP URLs must use HTTPS when the same public host can complete a valid TLS connection; HTTP remains allowed when HTTPS is unavailable. Root URLs omit the trailing slash (`https://example.com`, not `https://example.com/`), while trailing slashes on non-root paths remain allowed. Validation is read-only and does not rewrite Markdown.
 
-The rendered PDF opens inline in a new tab so the configurator remains available for another render.
+The web configurator renders the entire supplied Markdown document. Remove any drafting notes or email instructions from the input before rendering. The rendered PDF opens inline in a new tab so the configurator remains available for another render.
 
 ## Signature sections
 
