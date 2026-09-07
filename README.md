@@ -31,7 +31,7 @@ The configurator accepts an uploaded Markdown file or pasted Markdown and lets y
 - first-page date and date format, including `September 6, 2026`, `4 May 2025`, ISO, US numeric, or a custom `strftime` format
 - submission subtitle such as `Submitted by email` or `Submitted via FedEx`
 - addressee text with an optional bordered letterhead box
-- separate first-page and remaining-page header text
+- separate first-page and remaining-page header text, with clickable Markdown links and inline bold/italic formatting
 - footer page-count styles: none, `1`, `Page 1`, `1 of 5`, or `Page 1 of 5`
 - optional legal-style preflight validation; findings do not block PDF rendering
 - optional HTTP(S) URL validation and canonicalization checks

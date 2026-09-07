@@ -12,12 +12,14 @@ import re
 from PIL import Image as PILImage
 from PIL import ImageChops, ImageOps
 from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.utils import ImageReader
 from reportlab.platypus import (
     HRFlowable,
     Image,
+    KeepInFrame,
     PageBreak,
     Paragraph,
     Spacer,
@@ -455,6 +457,26 @@ class ConfiguredPdfRenderer(PdfRenderer):
         if self.keywords:
             canvas.setKeywords(self.keywords)
 
+    def _draw_header_text(self, canvas, doc, text: str, baseline: float, color):
+        """Render inline Markdown with clickable links in the header's single-line slot."""
+        chunks = []
+        start = 0
+        for match in self.url_re.finditer(text):
+            prefix, _ = self.markdown_inline(text[start:match.start()], False)
+            label, _ = self.markdown_inline(match.group(1), False)
+            chunks.extend((prefix, f'<a href="{escape(match.group(2), quote=True)}">{label}</a>'))
+            start = match.end()
+        suffix, _ = self.markdown_inline(text[start:], False)
+        chunks.append(suffix)
+        style = ParagraphStyle(
+            "Header", fontName="Times-Roman", fontSize=9.5,
+            leading=11.4, alignment=TA_CENTER, textColor=color,
+        )
+        width = self.page_width - doc.leftMargin - doc.rightMargin
+        block = KeepInFrame(width, style.leading, [Paragraph("".join(chunks), style)], mode="shrink")
+        _, height = block.wrapOn(canvas, width, style.leading)
+        block.drawOn(canvas, doc.leftMargin, baseline + style.fontSize - height)
+
     def draw_branding(self, canvas, doc):
         settings = self.letter_settings
         date_text = format_header_date(settings)
@@ -500,8 +522,9 @@ class ConfiguredPdfRenderer(PdfRenderer):
 
         line_offset = 0.78
         if first_header:
-            canvas.setFont("Times-Roman", 9.5)
-            canvas.drawCentredString(self.page_width / 2, self.page_height - 0.77 * inch, first_header)
+            self._draw_header_text(
+                canvas, doc, first_header, self.page_height - 0.77 * inch, colors.black,
+            )
             line_offset = 0.92
 
         canvas.line(
@@ -519,8 +542,9 @@ class ConfiguredPdfRenderer(PdfRenderer):
         canvas.saveState()
         canvas.setFillColor(colors.HexColor("#374151"))
         canvas.setStrokeColor(colors.HexColor("#9AA3AE"))
-        canvas.setFont("Times-Roman", 9.5)
-        canvas.drawCentredString(self.page_width / 2, self.page_height - 0.55 * inch, text)
+        self._draw_header_text(
+            canvas, doc, text, self.page_height - 0.55 * inch, colors.HexColor("#374151"),
+        )
         canvas.setLineWidth(0.5)
         canvas.line(
             doc.leftMargin,
