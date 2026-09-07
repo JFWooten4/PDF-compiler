@@ -34,8 +34,8 @@ The configurator accepts an uploaded Markdown file or pasted Markdown and lets y
 - separate first-page and remaining-page header text
 - footer page-count styles: none, `1`, `Page 1`, `1 of 5`, or `Page 1 of 5`
 - optional exact Markdown heading after which compilation begins
-- legal-style preflight validation before rendering
-- HTTP(S) URL validation and canonicalization checks before rendering
+- optional legal-style preflight validation; findings do not block PDF rendering
+- optional HTTP(S) URL validation and canonicalization checks
 
 Section structure is always written into the PDF outline/bookmark metadata. Turning off the visible table of contents only removes the TOC pages, and choosing no visible section numbering only removes numbering from displayed section labels; neither setting removes the PDF section outline.
 

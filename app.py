@@ -83,18 +83,6 @@ def render_pdf():
     if error:
         return jsonify({"error": error}), 400
 
-    issues = preflight_issues(markdown or "")
-    if issues:
-        return (
-            jsonify(
-                {
-                    "error": "Document preflight failed. The source was not modified and no PDF was generated.",
-                    "issues": issues,
-                }
-            ),
-            422,
-        )
-
     source_upload = request.files.get("source")
     with TemporaryDirectory(prefix="pdf-compiler-") as temp:
         root = Path(temp)
