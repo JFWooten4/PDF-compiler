@@ -1,4 +1,4 @@
-"""Small web UI for configuring, validating, and rendering PDFs."""
+"""Small web UI for configuring, validating, formatting, and rendering PDFs."""
 
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ from configured_renderer import (
     LetterSettings,
 )
 from legal_style_validator import validate_legal_style
+from markdown_formatter import format_markdown
 from url_validator import validate_urls
 
 app = Flask(__name__)
@@ -43,6 +44,18 @@ def submitted_markdown() -> tuple[str | None, str | None]:
     if markdown.strip():
         return markdown, None
     return None, "Upload a Markdown file or paste Markdown text."
+
+
+def formatted_markdown_filename() -> str:
+    source_upload = request.files.get("source")
+    if source_upload and source_upload.filename:
+        source_name = secure_filename(source_upload.filename) or "document.md"
+        stem = Path(source_name).stem or "document"
+        suffix = Path(source_name).suffix.lower()
+        if suffix not in {".md", ".markdown"}:
+            suffix = ".md"
+        return f"{stem}-formatted{suffix}"
+    return "document-formatted.md"
 
 
 def preflight_issues(markdown: str) -> list[dict[str, object]]:
@@ -75,6 +88,22 @@ def validate_markdown():
 
     issues = preflight_issues(markdown or "")
     return jsonify({"valid": not issues, "issues": issues})
+
+
+@app.post("/format")
+def format_markdown_source():
+    markdown, error = submitted_markdown()
+    if error:
+        return jsonify({"error": error}), 400
+
+    formatted = format_markdown(markdown or "")
+    payload = BytesIO(formatted.encode("utf-8"))
+    return send_file(
+        payload,
+        mimetype="text/markdown; charset=utf-8",
+        download_name=formatted_markdown_filename(),
+        as_attachment=True,
+    )
 
 
 @app.post("/render")
