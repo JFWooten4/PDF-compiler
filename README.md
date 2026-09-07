@@ -27,6 +27,7 @@ The configurator accepts an uploaded Markdown file or pasted Markdown and lets y
 - optional visible table of contents using the generated section labels and page locations
 - uploaded logo or text wordmark
 - logo treatment: preserve as uploaded, auto-trim empty padding, or auto-trim and optimize for monochrome printing
+- optional handwritten signature image rendered over a signing line by a standalone `[[signature]]` Markdown tag
 - first-page date and date format, including `September 6, 2026`, `4 May 2025`, ISO, US numeric, or a custom `strftime` format
 - submission subtitle such as `Submitted by email` or `Submitted via FedEx`
 - addressee text with an optional bordered letterhead box
@@ -41,6 +42,22 @@ Section structure is always written into the PDF outline/bookmark metadata. Turn
 The preflight validator reports line and column locations for required legal-style italics such as `_See_`, `_See, e.g.,_`, `_Id._`, `_Ibid._`, `_supra_`, `_infra_`, `_available at_`, and `_note_ 4`. These checks are case-insensitive. It also checks HTTP(S) URLs for valid structure and resolvable public hostnames, rejecting malformed, nonexistent, localhost, and private-network targets. HTTP URLs must use HTTPS when the same public host can complete a valid TLS connection; HTTP remains allowed when HTTPS is unavailable. Root URLs omit the trailing slash (`https://example.com`, not `https://example.com/`), while trailing slashes on non-root paths remain allowed. Validation is read-only and does not rewrite Markdown.
 
 The rendered PDF opens inline in a new tab so the configurator remains available for another render.
+
+## Signature sections
+
+Keep the sign-off language, signer name, title, and any other designation in the Markdown itself. Put `[[signature]]` on its own line only where the handwritten signature should appear:
+
+```markdown
+In good faith,
+
+[[signature]]
+
+John Wooten
+
+Chief Compliance Officer
+```
+
+Upload a signature image in the web configurator or pass `--signature path/to/signature.png` on the command line. The compiler trims white or transparent padding, places the handwriting over a short signing line, and renders just the blank line when no image is supplied. The tag is recognized only on its own line outside fenced code blocks, so examples can safely show `[[signature]]` inside a code fence.
 
 ## Footnote number references
 
@@ -73,6 +90,7 @@ Useful options:
 ```text
 --output PATH          choose the output PDF
 --logo PATH            add an image logo to the first page
+--signature PATH       add a handwritten image for [[signature]] tags
 --wordmark TEXT        use a text wordmark when no logo is supplied
 --title TEXT           set PDF title metadata
 --author TEXT          set PDF author metadata
@@ -86,6 +104,7 @@ For example:
 python pdf_compiler.py comment.md \
   --output comment.pdf \
   --logo imgs/logo.png \
+  --signature imgs/signature.png \
   --title "Comment Letter" \
   --author "WhyDRS" \
   --start-heading "Letter" \
@@ -105,6 +124,7 @@ The compiler supports:
 - Markdown footnotes placed at the bottom of the page where referenced, including continuation pages
 - `{{key}}` interpolation for stable references to final Markdown footnote numbers
 - basic bold, italic, inline code, links, block quotes, lists, rules, and local images
+- standalone `[[signature]]` sections with an optional handwritten image over a signing line
 - optional first-page logo or text wordmark
 - configurable PDF metadata
 - configurable first-page letterhead date and submission subtitle

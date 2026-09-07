@@ -13,8 +13,11 @@ import argparse
 import html
 import re
 from pathlib import Path
+from tempfile import NamedTemporaryFile
+import weakref
 
 from PIL import Image as PILImage
+from PIL import ImageChops, ImageDraw, ImageOps
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -28,6 +31,9 @@ from reportlab.platypus import (
     SimpleDocTemplate,
     Spacer,
 )
+
+
+SIGNATURE_SENTINEL = "@@PDF_COMPILER_SIGNATURE_BLOCK@@"
 
 
 class RefParagraph(Paragraph):
@@ -156,6 +162,42 @@ def extract_footnotes(markdown: str) -> tuple[str, dict[str, str]]:
     return "\n".join(body), notes
 
 
+def replace_signature_tags(markdown: str) -> tuple[str, int]:
+    """Replace standalone ``[[signature]]`` tags outside fenced code."""
+    output: list[str] = []
+    count = 0
+    in_fence = False
+    fence_marker: str | None = None
+
+    for raw_line in markdown.splitlines():
+        stripped = raw_line.strip()
+        if stripped.startswith("```") or stripped.startswith("~~~"):
+            marker = stripped[:3]
+            if not in_fence:
+                in_fence = True
+                fence_marker = marker
+            elif marker == fence_marker:
+                in_fence = False
+                fence_marker = None
+            output.append(raw_line)
+            continue
+
+        if not in_fence and stripped.lower() == "[[signature]]":
+            output.append(SIGNATURE_SENTINEL)
+            count += 1
+        else:
+            output.append(raw_line)
+
+    return "\n".join(output), count
+
+
+def _delete_generated_asset(path: Path) -> None:
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        pass
+
+
 class PdfRenderer:
     url_re = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
     note_ref_re = re.compile(r"\[\^([^\]]+)\]")
@@ -167,6 +209,7 @@ class PdfRenderer:
         output: Path,
         *,
         logo: Path | None = None,
+        signature: Path | None = None,
         wordmark: str | None = None,
         title: str | None = None,
         author: str | None = None,
@@ -176,12 +219,15 @@ class PdfRenderer:
         self.source = source
         self.output = output
         self.logo = logo
+        self.signature = signature
         self.wordmark = wordmark
         self.title = title or source.stem
         self.author = author or ""
         self.smart_quotes = smart_quotes
         self.order: list[str] = []
         self.nums: dict[str, int] = {}
+        self._signature_asset: Path | None = None
+        self._signature_asset_finalizer = None
 
         pdfmetrics.registerFontFamily(
             "Times-Roman",
@@ -194,6 +240,7 @@ class PdfRenderer:
         raw = self.source.read_text(encoding="utf-8")
         body = extract_body(raw, start_heading)
         self.body_text, self.note_defs = extract_footnotes(body)
+        self._prepare_signature_directives()
         self.prime_note_numbers()
         self.styles = self._styles()
 
@@ -205,6 +252,33 @@ class PdfRenderer:
         self.foot_top = 3.05 * inch
         self.max_foot_width = self.page_width - self.left - self.right
         self.max_foot_height = self.foot_top - 0.12 * inch
+
+    def _prepare_signature_directives(self) -> None:
+        processed, count = replace_signature_tags(self.body_text)
+        if not count:
+            return
+
+        if self.signature and not self.signature.exists():
+            raise ValueError(f"Signature image not found: {self.signature}")
+
+        asset = self._create_signature_asset()
+        self._signature_asset = asset
+        self._signature_asset_finalizer = weakref.finalize(self, _delete_generated_asset, asset)
+        self.body_text = processed.replace(
+            SIGNATURE_SENTINEL,
+            f"![signature]({asset.as_posix()})",
+        )
+
+    def _create_signature_asset(self) -> Path:
+        """Create a professionally normalized responsive signature block."""
+        from signature_layout import create_signature_asset
+
+        return create_signature_asset(self.signature)
+
+    def _cleanup_signature_asset(self) -> None:
+        finalizer = self._signature_asset_finalizer
+        if finalizer is not None and finalizer.alive:
+            finalizer()
 
     def _styles(self):
         styles = getSampleStyleSheet()
@@ -641,27 +715,30 @@ class PdfRenderer:
         if tmp.exists():
             tmp.unlink()
 
-        first_doc = self.document(tmp)
-        first_doc.build(
-            self.build_story(),
-            onFirstPage=lambda _canvas, _doc: None,
-            onLaterPages=lambda _canvas, _doc: None,
-        )
+        try:
+            first_doc = self.document(tmp)
+            first_doc.build(
+                self.build_story(),
+                onFirstPage=lambda _canvas, _doc: None,
+                onLaterPages=lambda _canvas, _doc: None,
+            )
 
-        extra_pages = self.continuation_pages_needed(first_doc.page_refs, first_doc.page)
-        drawer = self.page_drawer(first_doc.page_refs)
-        final_doc = self.document(self.output)
-        final_doc.build(
-            self.build_story(extra_pages),
-            onFirstPage=drawer,
-            onLaterPages=drawer,
-        )
+            extra_pages = self.continuation_pages_needed(first_doc.page_refs, first_doc.page)
+            drawer = self.page_drawer(first_doc.page_refs)
+            final_doc = self.document(self.output)
+            final_doc.build(
+                self.build_story(extra_pages),
+                onFirstPage=drawer,
+                onLaterPages=drawer,
+            )
 
-        if tmp.exists():
-            tmp.unlink()
-        if drawer.carry():
-            raise RuntimeError("Footnote continuation text remained after final page")
-        return final_doc.page, len(self.order), extra_pages
+            if drawer.carry():
+                raise RuntimeError("Footnote continuation text remained after final page")
+            return final_doc.page, len(self.order), extra_pages
+        finally:
+            if tmp.exists():
+                tmp.unlink()
+            self._cleanup_signature_asset()
 
 
 def main() -> int:
@@ -673,6 +750,11 @@ def main() -> int:
         help="PDF output path (default: source path with .pdf suffix)",
     )
     parser.add_argument("--logo", type=Path, help="First-page logo image")
+    parser.add_argument(
+        "--signature",
+        type=Path,
+        help="Optional handwritten signature image used by [[signature]] tags",
+    )
     parser.add_argument(
         "--wordmark",
         help="Text wordmark used when no logo file is supplied",
@@ -695,6 +777,7 @@ def main() -> int:
         args.source,
         output,
         logo=args.logo,
+        signature=args.signature,
         wordmark=args.wordmark,
         title=args.title,
         author=args.author,

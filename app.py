@@ -113,6 +113,13 @@ def render_pdf():
             logo = root / logo_name
             logo_upload.save(logo)
 
+        signature = None
+        signature_upload = request.files.get("signature")
+        if signature_upload and signature_upload.filename:
+            signature_name = secure_filename(signature_upload.filename) or "signature.png"
+            signature = root / f"signature-{signature_name}"
+            signature_upload.save(signature)
+
         settings = LetterSettings(
             show_date=truthy("show_date"),
             date_format=request.form.get("date_format", "month_day_year"),
@@ -135,6 +142,7 @@ def render_pdf():
             output,
             settings=settings,
             logo=logo,
+            signature=signature,
             wordmark=request.form.get("wordmark", "").strip() or None,
             title=request.form.get("title", "").strip() or None,
             author=request.form.get("author", "").strip() or None,

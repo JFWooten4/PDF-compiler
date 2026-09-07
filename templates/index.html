@@ -205,6 +205,22 @@
     </fieldset>
 
     <fieldset>
+      <legend>Signature</legend>
+      <div class="grid">
+        <label>Signature image
+          <input id="signature" type="file" name="signature" accept="image/*">
+          <small>Optional handwritten signature image. White or transparent background works best.</small>
+        </label>
+        <div>
+          <img id="signature-preview" class="preview" alt="Signature preview">
+        </div>
+        <div class="full">
+          <small>Put <code>[[signature]]</code> on its own line in Markdown. The tag renders a short signing line and, when supplied, places this image on it. Keep “Sincerely,”, “In good faith,”, your name, title, and other sign-off text in the Markdown itself.</small>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
       <legend>Letterhead</legend>
       <div class="grid">
         <label class="check full"><input type="checkbox" name="show_date" checked> Show date in header</label>
@@ -296,6 +312,15 @@
     if (!file) { preview.style.display = 'none'; return; }
     preview.src = URL.createObjectURL(file);
     preview.style.display = 'block';
+  });
+
+  const signature = document.getElementById('signature');
+  const signaturePreview = document.getElementById('signature-preview');
+  signature.addEventListener('change', () => {
+    const file = signature.files && signature.files[0];
+    if (!file) { signaturePreview.style.display = 'none'; return; }
+    signaturePreview.src = URL.createObjectURL(file);
+    signaturePreview.style.display = 'block';
   });
 
   const form = document.getElementById('compiler-form');
