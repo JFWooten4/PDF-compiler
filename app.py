@@ -19,16 +19,10 @@ from configured_renderer import (
     LetterSettings,
 )
 from legal_style_validator import validate_legal_style
-from pdf_compiler import HeadingNotFoundError
 from url_validator import validate_urls
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024
-
-
-@app.errorhandler(HeadingNotFoundError)
-def heading_not_found(error: HeadingNotFoundError):
-    return jsonify({"error": str(error)}), 400
 
 
 def truthy(name: str) -> bool:
@@ -142,7 +136,6 @@ def render_pdf():
             author=request.form.get("author", "").strip() or None,
             subject=request.form.get("subject", "").strip() or None,
             keywords=request.form.get("keywords", "").strip() or None,
-            start_heading=request.form.get("start_heading", "").strip() or None,
             smart_quotes=truthy("smart_quotes"),
         )
         renderer.build()

@@ -120,24 +120,15 @@ def smarten_quotes(text: str) -> str:
     return "".join(part if index % 2 else transform(part) for index, part in enumerate(parts))
 
 
-class HeadingNotFoundError(ValueError):
-    """The requested starting heading is absent from the document."""
-
-
 def extract_body(markdown: str, start_heading: str | None = None) -> str:
     """Return all Markdown, or only the content after an exact heading."""
     if not start_heading:
         return markdown.strip()
 
-    heading_text = re.sub(r"^#{1,6}[ \t]+", "", start_heading.strip())
-    heading = re.escape(heading_text)
-    match = re.search(rf"^#{{1,6}}[ \t]+{heading}[ \t]*\r?$", markdown, re.MULTILINE)
+    heading = re.escape(start_heading.strip())
+    match = re.search(rf"^#{{1,6}}\s+{heading}\s*$", markdown, re.MULTILINE)
     if not match:
-        raise HeadingNotFoundError(
-            f"Could not find heading: {start_heading!r}. "
-            "Enter the exact heading text (with or without leading # marks), "
-            "or leave Start after heading blank to render the whole document."
-        )
+        raise ValueError(f"Could not find heading: {start_heading!r}")
     return markdown[match.end() :].strip()
 
 
