@@ -15,9 +15,9 @@ from configured_renderer import (
     IMAGE_TREATMENTS,
     PAGE_NUMBER_STYLES,
     SECTION_NUMBERING_STYLES,
-    ConfiguredPdfRenderer,
     LetterSettings,
 )
+from first_page_layout import FirstPagePdfRenderer
 from legal_style_validator import validate_legal_style
 from url_validator import validate_urls
 
@@ -125,13 +125,14 @@ def render_pdf():
         )
 
         output = root / "output.pdf"
-        renderer = ConfiguredPdfRenderer(
+        renderer = FirstPagePdfRenderer(
             source,
             output,
             settings=settings,
             logo=logo,
             signature=signature,
             wordmark=request.form.get("wordmark", "").strip() or None,
+            visible_document_title=request.form.get("document_title", "").strip() or None,
             title=request.form.get("title", "").strip() or None,
             author=request.form.get("author", "").strip() or None,
             subject=request.form.get("subject", "").strip() or None,
