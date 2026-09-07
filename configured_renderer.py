@@ -435,7 +435,13 @@ class ConfiguredPdfRenderer(PdfRenderer):
                 flush_paragraph()
                 flush_quote()
                 marker = list_match.group(2) if list_match.group(2).endswith(".") else "-"
-                story.append(self.list_item(list_match.group(3), marker))
+                story.append(
+                    self.list_item(
+                        list_match.group(3),
+                        marker,
+                        self.list_indent_columns(list_match.group(1)),
+                    )
+                )
                 continue
 
             paragraph_lines.append(line)

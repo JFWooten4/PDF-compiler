@@ -428,9 +428,31 @@ class PdfRenderer:
         rendered, refs = self.markdown_inline(text, True)
         return RefParagraph(rendered, style, refs)
 
-    def list_item(self, text: str, marker: str = "-") -> RefParagraph:
+    @staticmethod
+    def list_indent_columns(indent: str) -> int:
+        """Return Markdown indentation width, expanding tabs to four-column stops."""
+        return len(indent.expandtabs(4))
+
+    def list_item(
+        self,
+        text: str,
+        marker: str = "-",
+        indent_columns: int = 0,
+    ) -> RefParagraph:
         rendered, refs = self.markdown_inline(text, True)
-        return RefParagraph(rendered, self.styles["ListX"], refs, bulletText=marker)
+        base_style = self.styles["ListX"]
+        indent_columns = max(0, indent_columns)
+        if indent_columns:
+            offset = indent_columns * 0.075 * inch
+            style = ParagraphStyle(
+                f"ListXIndent{indent_columns}",
+                parent=base_style,
+                leftIndent=base_style.leftIndent + offset,
+                bulletIndent=base_style.bulletIndent + offset,
+            )
+        else:
+            style = base_style
+        return RefParagraph(rendered, style, refs, bulletText=marker)
 
     @staticmethod
     def clean_heading(text: str) -> str:
@@ -556,7 +578,13 @@ class PdfRenderer:
                 flush_paragraph()
                 flush_quote()
                 marker = list_match.group(2) if list_match.group(2).endswith(".") else "-"
-                story.append(self.list_item(list_match.group(3), marker))
+                story.append(
+                    self.list_item(
+                        list_match.group(3),
+                        marker,
+                        self.list_indent_columns(list_match.group(1)),
+                    )
+                )
                 continue
 
             paragraph_lines.append(line)
