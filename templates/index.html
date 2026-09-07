@@ -141,6 +141,56 @@
     </fieldset>
 
     <fieldset>
+      <legend>Typography</legend>
+      <div class="grid">
+        <div class="full"><small>Rendered PDFs continue to use the Times family. Font sizes are in points; body line spacing is a multiplier of the body font size.</small></div>
+        <label>Body text size
+          <input type="number" name="body_font_size" value="12" min="6" max="36" step="0.1">
+        </label>
+        <label>Body line spacing
+          <input type="number" name="line_spacing" value="1.3" min="1" max="3" step="0.05">
+          <small>1.3 means 15.6 pt leading with the default 12 pt body.</small>
+        </label>
+        <label>Section heading <code>##</code>
+          <input type="number" name="h1_font_size" value="16.5" min="6" max="36" step="0.1">
+        </label>
+        <label>Subsection heading <code>###</code>
+          <input type="number" name="h2_font_size" value="13.7" min="6" max="36" step="0.1">
+        </label>
+        <label>Minor heading <code>####</code>
+          <input type="number" name="h3_font_size" value="12.2" min="6" max="36" step="0.1">
+        </label>
+        <label>Deep headings <code>#####</code>+
+          <input type="number" name="h4_font_size" value="11" min="6" max="36" step="0.1">
+        </label>
+        <label>Footnotes
+          <input type="number" name="footnote_font_size" value="8.8" min="6" max="36" step="0.1">
+        </label>
+        <label>TOC title
+          <input type="number" name="toc_title_font_size" value="14" min="6" max="36" step="0.1">
+        </label>
+        <label>TOC entries
+          <input type="number" name="toc_entry_font_size" value="9.5" min="6" max="36" step="0.1">
+        </label>
+        <label>Wordmark
+          <input type="number" name="wordmark_font_size" value="18" min="6" max="36" step="0.1">
+        </label>
+        <label>Date
+          <input type="number" name="date_font_size" value="10.5" min="6" max="36" step="0.1">
+        </label>
+        <label>Submission subtitle
+          <input type="number" name="subtitle_font_size" value="9.5" min="6" max="36" step="0.1">
+        </label>
+        <label>Page headers
+          <input type="number" name="header_font_size" value="9.5" min="6" max="36" step="0.1">
+        </label>
+        <label>Page numbers
+          <input type="number" name="page_number_font_size" value="8.5" min="6" max="36" step="0.1">
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset>
       <legend>Sections &amp; TOC</legend>
       <div class="grid">
         <label>Section numbering
