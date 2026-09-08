@@ -88,8 +88,8 @@ class TypographyPdfRenderer(ConfiguredPdfRenderer):
         styles["FootX"].leading = self._scaled_leading(typography.footnote_font_size, 8.8, 9.9)
         return styles
 
-    def _toc_block(self, page_numbers: list[int] | None = None):
-        if not self.letter_settings.include_toc:
+    def _toc_block(self, page_numbers: list[int] | None = None, *, force: bool = False):
+        if not (force or self.letter_settings.include_toc):
             return []
 
         entries = self._collect_section_entries()

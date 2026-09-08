@@ -6,6 +6,7 @@
   <title>PDF Compiler</title>
   <script>
     (() => {
+      document.documentElement.classList.add('js');
       const saved = localStorage.getItem('pdf-compiler-theme');
       const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       document.documentElement.dataset.theme = saved || (systemDark ? 'dark' : 'light');
@@ -31,6 +32,7 @@
       --success-bg: #edf8f1;
       --error: #a52a2a;
       --error-bg: #fff1f1;
+      --progress: #172033;
     }
     :root[data-theme="dark"] {
       color-scheme: dark;
@@ -50,65 +52,166 @@
       --success-bg: #10261a;
       --error: #ff9b9b;
       --error-bg: #301515;
+      --progress: #e6edf3;
     }
     * { box-sizing: border-box; }
     html { background: var(--bg); }
     body { margin: 0; background: var(--bg); color: var(--text); }
-    main { max-width: 1040px; margin: 0 auto; padding: 32px 20px 56px; }
-    .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 26px; }
-    h1 { margin: 0 0 6px; font-size: 30px; }
-    .intro { margin: 0; color: var(--muted); }
-    form { display: grid; gap: 18px; }
-    fieldset { border: 1px solid var(--border); border-radius: 14px; background: var(--surface); padding: 20px; box-shadow: 0 8px 22px var(--shadow); }
-    legend { font-weight: 700; padding: 0 8px; }
-    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; }
+    main { max-width: 860px; margin: 0 auto; padding: 24px 18px 48px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 16px; }
+    h1 { margin: 0 0 3px; font-size: 26px; letter-spacing: -.02em; }
+    .intro { margin: 0; color: var(--muted); font-size: 14px; }
+    form { margin: 0; }
+    .wizard {
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: var(--surface);
+      box-shadow: 0 10px 28px var(--shadow);
+    }
+    .wizard-progress {
+      display: grid;
+      gap: 9px;
+      padding: 14px 18px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-subtle);
+    }
+    .wizard-progress-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .step-count { color: var(--muted); font-size: 12px; font-weight: 750; text-transform: uppercase; letter-spacing: .08em; }
+    .step-title { color: var(--text); font-size: 13px; font-weight: 700; }
+    .progress-track { height: 3px; overflow: hidden; border-radius: 999px; background: var(--border); }
+    .progress-fill { width: 12.5%; height: 100%; border-radius: inherit; background: var(--progress); transition: width .18s ease; }
+    .step-tabs {
+      display: flex;
+      gap: 5px;
+      overflow-x: auto;
+      padding: 0 18px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-subtle);
+      scrollbar-width: thin;
+    }
+    .step-tab {
+      flex: 0 0 auto;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      padding: 6px 9px;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .step-tab:hover { background: var(--surface); color: var(--text); opacity: 1; }
+    .step-tab[aria-current="step"] {
+      border-color: var(--border);
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 2px 8px var(--shadow);
+    }
+    fieldset {
+      min-width: 0;
+      margin: 0;
+      border: 0;
+      padding: 22px 22px 18px;
+    }
+    .js .wizard-page { display: none; }
+    .js .wizard-page.is-active { display: block; }
+    legend {
+      display: block;
+      width: 100%;
+      margin: 0 0 16px;
+      padding: 0;
+      color: var(--text);
+      font-size: 21px;
+      font-weight: 760;
+      letter-spacing: -.015em;
+    }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 15px; }
     .full { grid-column: 1 / -1; }
-    label { display: grid; gap: 6px; font-size: 14px; font-weight: 650; }
-    input, select, textarea { width: 100%; border: 1px solid var(--control-border); border-radius: 9px; padding: 10px 11px; background: var(--surface-subtle); color: var(--text); font: inherit; }
+    label { display: grid; gap: 5px; font-size: 13px; font-weight: 650; }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--control-border);
+      border-radius: 8px;
+      padding: 9px 10px;
+      background: var(--surface-subtle);
+      color: var(--text);
+      font: inherit;
+      font-size: 14px;
+    }
     input:focus, select:focus, textarea:focus { outline: 2px solid var(--focus); outline-offset: 1px; border-color: transparent; }
-    textarea { min-height: 110px; resize: vertical; }
-    #markdown { min-height: 230px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
-    small { color: var(--subtle); font-weight: 400; }
-    .check { display: flex; align-items: center; gap: 9px; font-weight: 600; }
+    textarea { min-height: 92px; resize: vertical; }
+    #markdown { min-height: 180px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+    small { color: var(--subtle); font-weight: 400; line-height: 1.4; }
+    .check { display: flex; align-items: center; gap: 8px; font-weight: 600; }
     .check input { width: auto; }
-    .preview { display: none; max-width: 230px; max-height: 90px; object-fit: contain; border: 1px dashed var(--control-border); border-radius: 8px; padding: 7px; background: var(--surface-subtle); }
-    .actions { display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap; }
-    button { border: 1px solid transparent; border-radius: 10px; padding: 12px 18px; background: var(--button-bg); color: var(--button-text); font: inherit; font-weight: 700; cursor: pointer; }
+    .preview { display: none; max-width: 210px; max-height: 80px; object-fit: contain; border: 1px dashed var(--control-border); border-radius: 8px; padding: 6px; background: var(--surface-subtle); }
+    .validation { display: none; margin: 0 22px 18px; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; background: var(--surface); font-size: 13px; }
+    .validation.pass { display: block; color: var(--success); background: var(--success-bg); }
+    .validation.fail { display: block; color: var(--error); background: var(--error-bg); }
+    .validation strong { display: block; margin-bottom: 5px; }
+    .validation ul { margin: 7px 0 0 18px; padding: 0; }
+    .validation li { margin: 5px 0; }
+    .validation code { color: inherit; }
+    .wizard-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 13px 18px;
+      border-top: 1px solid var(--border);
+      background: var(--surface-subtle);
+    }
+    .action-group { display: flex; align-items: center; gap: 9px; }
+    button {
+      border: 1px solid transparent;
+      border-radius: 9px;
+      padding: 9px 13px;
+      background: var(--button-bg);
+      color: var(--button-text);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
     button:hover { opacity: .9; }
+    button:disabled { cursor: default; opacity: .45; }
     .secondary { border-color: var(--border); background: var(--surface); color: var(--text); }
-    .theme-toggle { flex: 0 0 auto; padding: 9px 12px; border-color: var(--border); background: var(--surface); color: var(--text); box-shadow: 0 4px 12px var(--shadow); }
+    .theme-toggle { flex: 0 0 auto; padding: 8px 10px; border-color: var(--border); background: var(--surface); color: var(--text); box-shadow: 0 3px 10px var(--shadow); }
+    .final-action[hidden], .next-action[hidden] { display: none; }
     .bug-report {
       position: fixed;
-      right: 18px;
-      bottom: 18px;
+      right: 16px;
+      bottom: 16px;
       z-index: 10;
       display: inline-flex;
       align-items: center;
-      gap: 7px;
+      gap: 6px;
       border: 1px solid var(--border);
       border-radius: 999px;
-      padding: 10px 14px;
+      padding: 8px 11px;
       background: var(--surface);
       color: var(--text);
-      box-shadow: 0 6px 18px var(--shadow);
+      box-shadow: 0 5px 16px var(--shadow);
       text-decoration: none;
-      font-size: 14px;
+      font-size: 12px;
       font-weight: 700;
     }
     .bug-report:hover { opacity: .9; }
     .bug-report:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-    .validation { display: none; border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; background: var(--surface); }
-    .validation.pass { display: block; color: var(--success); background: var(--success-bg); }
-    .validation.fail { display: block; color: var(--error); background: var(--error-bg); }
-    .validation strong { display: block; margin-bottom: 6px; }
-    .validation ul { margin: 8px 0 0 20px; padding: 0; }
-    .validation li { margin: 6px 0; }
-    .validation code { color: inherit; }
     @media (max-width: 720px) {
+      main { padding: 16px 12px 44px; }
+      .topbar { align-items: center; }
+      .intro { display: none; }
       .grid { grid-template-columns: 1fr; }
       .full { grid-column: auto; }
-      .topbar { align-items: center; }
-      .bug-report { right: 12px; bottom: 12px; }
+      fieldset { padding: 18px 16px 16px; }
+      .wizard-progress { padding: 12px 14px 10px; }
+      .step-tabs { padding: 0 14px 10px; }
+      .validation { margin: 0 16px 16px; }
+      .wizard-actions { padding: 11px 14px; }
+      .bug-report { right: 10px; bottom: 10px; }
     }
   </style>
 </head>
@@ -117,30 +220,50 @@
   <div class="topbar">
     <div>
       <h1>PDF Compiler</h1>
-      <p class="intro">Configure document presentation, optionally run the read-only preflight, then render the PDF.</p>
+      <p class="intro">Configure one section at a time, then validate or render your PDF.</p>
     </div>
     <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle color theme"></button>
   </div>
 
   <form id="compiler-form" action="/render" method="post" enctype="multipart/form-data" target="_blank">
-    <fieldset>
-      <legend>Document</legend>
-      <div class="grid">
-        <label>Markdown file
-          <input type="file" name="source" accept=".md,.markdown,text/markdown,text/plain">
-          <small>If supplied, this takes precedence over pasted Markdown.</small>
-        </label>
-        <label>Output filename
-          <input name="output_name" value="document.pdf">
-        </label>
-        <label class="full">Or paste Markdown
-          <textarea id="markdown" name="markdown" placeholder="# Letter&#10;&#10;Your document…"></textarea>
-        </label>
-        <label class="check"><input type="checkbox" name="smart_quotes"> Use smart quotes in rendered PDF</label>
+    <div class="wizard">
+      <div class="wizard-progress" aria-live="polite">
+        <div class="wizard-progress-row">
+          <span id="step-count" class="step-count">Step 1 of 8</span>
+          <span id="step-title" class="step-title">Document</span>
+        </div>
+        <div class="progress-track" aria-hidden="true"><div id="progress-fill" class="progress-fill"></div></div>
       </div>
-    </fieldset>
 
-    <fieldset>
+      <nav class="step-tabs" aria-label="Compiler sections">
+        <button class="step-tab" type="button" data-step-target="0">Document</button>
+        <button class="step-tab" type="button" data-step-target="1">Typography</button>
+        <button class="step-tab" type="button" data-step-target="2">Sections</button>
+        <button class="step-tab" type="button" data-step-target="3">Metadata</button>
+        <button class="step-tab" type="button" data-step-target="4">Branding</button>
+        <button class="step-tab" type="button" data-step-target="5">Signature</button>
+        <button class="step-tab" type="button" data-step-target="6">Letterhead</button>
+        <button class="step-tab" type="button" data-step-target="7">Headers</button>
+      </nav>
+
+      <fieldset class="wizard-page" data-step-title="Document">
+        <legend>Document</legend>
+        <div class="grid">
+          <label>Markdown file
+            <input type="file" name="source" accept=".md,.markdown,text/markdown,text/plain">
+            <small>If supplied, this takes precedence over pasted Markdown.</small>
+          </label>
+          <label>Output filename
+            <input name="output_name" value="document.pdf">
+          </label>
+          <label class="full">Or paste Markdown
+            <textarea id="markdown" name="markdown" placeholder="# Letter&#10;&#10;Your document…"></textarea>
+          </label>
+          <label class="check"><input type="checkbox" name="smart_quotes"> Use smart quotes in rendered PDF</label>
+        </div>
+      </fieldset>
+
+    <fieldset class="wizard-page" data-step-title="Typography">
       <legend>Typography</legend>
       <div class="grid">
         <div class="full"><small>Rendered PDFs continue to use the Times family. Font sizes are in points; body line spacing is a multiplier of the body font size.</small></div>
@@ -190,138 +313,143 @@
       </div>
     </fieldset>
 
-    <fieldset>
-      <legend>Sections &amp; TOC</legend>
-      <div class="grid">
-        <label>Section numbering
-          <select name="section_numbering">
-            {% for value, label in section_numbering_styles.items() %}
-              <option value="{{ value }}">{{ label }}</option>
-            {% endfor %}
-          </select>
-          <small>Controls visible section labels in headings and, when enabled, the table of contents.</small>
-        </label>
-        <label class="check"><input type="checkbox" name="include_toc"> Include visible table of contents</label>
-        <div class="full">
-          <small>PDF outline/bookmarks are always generated from Markdown sections, even when the visible TOC is off or visible section numbering is disabled.</small>
+      <fieldset class="wizard-page" data-step-title="Sections &amp; TOC">
+        <legend>Sections &amp; TOC</legend>
+        <div class="grid">
+          <label>Section numbering
+            <select name="section_numbering">
+              {% for value, label in section_numbering_styles.items() %}
+                <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+            <small>Controls visible section labels in headings and, when enabled, the table of contents.</small>
+          </label>
+          <label class="check"><input type="checkbox" name="include_toc"> Include visible table of contents</label>
+          <div class="full">
+            <small>PDF outline/bookmarks are always generated from Markdown sections, even when the visible TOC is off or visible section numbering is disabled.</small>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="wizard-page" data-step-title="Output metadata">
+        <legend>Output metadata</legend>
+        <div class="grid">
+          <label class="full">Document title
+            <input name="title" placeholder="Comment Letter">
+            <small>Stored as the PDF Title metadata. If blank, the source filename stem is used.</small>
+          </label>
+          <label>Author
+            <input name="author" placeholder="Organization or author">
+          </label>
+          <label>Subject
+            <input name="subject" placeholder="Document subject or filing description">
+          </label>
+          <label class="full">Keywords
+            <input name="keywords" placeholder="securities, transfer agents, comment letter">
+            <small>Stored in the PDF Keywords metadata; comma-separated terms work well.</small>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset class="wizard-page" data-step-title="Branding">
+        <legend>Branding</legend>
+        <div class="grid">
+          <label>Logo image
+            <input id="logo" type="file" name="logo" accept="image/*">
+          </label>
+          <label>Logo treatment
+            <select name="logo_treatment">
+              {% for value, label in image_treatments.items() %}
+                <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>Text wordmark
+            <input name="wordmark" placeholder="Used when no logo is uploaded">
+          </label>
+          <div>
+            <img id="logo-preview" class="preview" alt="Logo preview">
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="wizard-page" data-step-title="Signature">
+        <legend>Signature</legend>
+        <div class="grid">
+          <label>Signature image
+            <input id="signature" type="file" name="signature" accept="image/*">
+            <small>Optional handwritten signature image. White or transparent background works best.</small>
+          </label>
+          <div>
+            <img id="signature-preview" class="preview" alt="Signature preview">
+          </div>
+          <div class="full">
+            <small>Put <code>[[signature]]</code> on its own line in Markdown. The tag renders a short signing line and, when supplied, places this image on it. Keep “Sincerely,” your name, title, and other sign-off text in the Markdown itself.</small>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="wizard-page" data-step-title="Letterhead">
+        <legend>Letterhead</legend>
+        <div class="grid">
+          <label class="check full"><input type="checkbox" name="show_date" checked> Show date in header</label>
+          <label>Date
+            <input type="date" name="date_value" value="{{ today }}">
+          </label>
+          <label>Date format
+            <select id="date-format" name="date_format">
+              {% for value, label in date_formats.items() %}
+                <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label id="custom-date-row" class="full" hidden>Custom date format
+            <input name="custom_date_format" value="%B %d, %Y">
+            <small>Python strftime syntax.</small>
+          </label>
+          <label class="full">Submission subtitle
+            <input name="submission_subtitle" placeholder="Submitted by email">
+            <small>Appears under the date in the first-page header.</small>
+          </label>
+          <label class="full">Addressee
+            <textarea name="addressee" placeholder="Vanessa A. Countryman&#10;Secretary&#10;Securities and Exchange Commission&#10;100 F Street NE&#10;Washington, DC 20549"></textarea>
+          </label>
+          <label class="check full"><input type="checkbox" name="addressee_box" checked> Render addressee in a letterhead box</label>
+        </div>
+      </fieldset>
+
+      <fieldset class="wizard-page" data-step-title="Headers &amp; footer">
+        <legend>Headers &amp; footer</legend>
+        <div class="grid">
+          <label>First-page header
+            <input name="first_page_header" placeholder="Optional first-page header text">
+            <small>Shown only on page 1, below the main letterhead row.</small>
+          </label>
+          <label>Remaining-page header
+            <input name="remaining_page_header" placeholder="Optional header for pages 2+">
+            <small>Shown at the top of every page after the first.</small>
+          </label>
+          <label>Footer page count style
+            <select name="page_number_style">
+              {% for value, label in page_number_styles.items() %}
+                <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+            <small>Total-page formats include footnote continuation pages.</small>
+          </label>
+        </div>
+      </fieldset>
+
+      <div id="validation-result" class="validation" role="status" aria-live="polite"></div>
+
+      <div class="wizard-actions">
+        <button id="back-button" class="secondary" type="button">Back</button>
+        <div class="action-group">
+          <button id="validate-button" class="secondary final-action" type="button" hidden>Validate document</button>
+          <button id="next-button" class="next-action" type="button">Next</button>
+          <button id="render-button" class="final-action" type="submit" hidden>Render PDF</button>
         </div>
       </div>
-    </fieldset>
-
-    <fieldset>
-      <legend>Output metadata</legend>
-      <div class="grid">
-        <label class="full">Document title
-          <input name="title" placeholder="Comment Letter">
-          <small>Stored as the PDF Title metadata. If blank, the source filename stem is used.</small>
-        </label>
-        <label>Author
-          <input name="author" placeholder="Organization or author">
-        </label>
-        <label>Subject
-          <input name="subject" placeholder="Document subject or filing description">
-        </label>
-        <label class="full">Keywords
-          <input name="keywords" placeholder="securities, transfer agents, comment letter">
-          <small>Stored in the PDF Keywords metadata; comma-separated terms work well.</small>
-        </label>
-      </div>
-    </fieldset>
-
-    <fieldset>
-      <legend>Branding</legend>
-      <div class="grid">
-        <label>Logo image
-          <input id="logo" type="file" name="logo" accept="image/*">
-        </label>
-        <label>Logo treatment
-          <select name="logo_treatment">
-            {% for value, label in image_treatments.items() %}
-              <option value="{{ value }}">{{ label }}</option>
-            {% endfor %}
-          </select>
-        </label>
-        <label>Text wordmark
-          <input name="wordmark" placeholder="Used when no logo is uploaded">
-        </label>
-        <div>
-          <img id="logo-preview" class="preview" alt="Logo preview">
-        </div>
-      </div>
-    </fieldset>
-
-    <fieldset>
-      <legend>Signature</legend>
-      <div class="grid">
-        <label>Signature image
-          <input id="signature" type="file" name="signature" accept="image/*">
-          <small>Optional handwritten signature image. White or transparent background works best.</small>
-        </label>
-        <div>
-          <img id="signature-preview" class="preview" alt="Signature preview">
-        </div>
-        <div class="full">
-          <small>Put <code>[[signature]]</code> on its own line in Markdown. The tag renders a short signing line and, when supplied, places this image on it. Keep “Sincerely,” your name, title, and other sign-off text in the Markdown itself.</small>
-        </div>
-      </div>
-    </fieldset>
-
-    <fieldset>
-      <legend>Letterhead</legend>
-      <div class="grid">
-        <label class="check full"><input type="checkbox" name="show_date" checked> Show date in header</label>
-        <label>Date
-          <input type="date" name="date_value" value="{{ today }}">
-        </label>
-        <label>Date format
-          <select id="date-format" name="date_format">
-            {% for value, label in date_formats.items() %}
-              <option value="{{ value }}">{{ label }}</option>
-            {% endfor %}
-          </select>
-        </label>
-        <label id="custom-date-row" class="full" hidden>Custom date format
-          <input name="custom_date_format" value="%B %d, %Y">
-          <small>Python strftime syntax.</small>
-        </label>
-        <label class="full">Submission subtitle
-          <input name="submission_subtitle" placeholder="Submitted by email">
-          <small>Appears under the date in the first-page header.</small>
-        </label>
-        <label class="full">Addressee
-          <textarea name="addressee" placeholder="Vanessa A. Countryman&#10;Secretary&#10;Securities and Exchange Commission&#10;100 F Street NE&#10;Washington, DC 20549"></textarea>
-        </label>
-        <label class="check full"><input type="checkbox" name="addressee_box" checked> Render addressee in a letterhead box</label>
-      </div>
-    </fieldset>
-
-    <fieldset>
-      <legend>Headers &amp; footer</legend>
-      <div class="grid">
-        <label>First-page header
-          <input name="first_page_header" placeholder="Optional first-page header text">
-          <small>Shown only on page 1, below the main letterhead row.</small>
-        </label>
-        <label>Remaining-page header
-          <input name="remaining_page_header" placeholder="Optional header for pages 2+">
-          <small>Shown at the top of every page after the first.</small>
-        </label>
-        <label>Footer page count style
-          <select name="page_number_style">
-            {% for value, label in page_number_styles.items() %}
-              <option value="{{ value }}">{{ label }}</option>
-            {% endfor %}
-          </select>
-          <small>Total-page formats include footnote continuation pages.</small>
-        </label>
-      </div>
-    </fieldset>
-
-    <div id="validation-result" class="validation" role="status" aria-live="polite"></div>
-
-    <div class="actions">
-      <button id="validate-button" class="secondary" type="button">Validate document</button>
-      <button id="render-button" type="submit">Render PDF</button>
     </div>
   </form>
 </main>
@@ -371,6 +499,53 @@
   const form = document.getElementById('compiler-form');
   const validationResult = document.getElementById('validation-result');
   const validateButton = document.getElementById('validate-button');
+  const wizardPages = [...document.querySelectorAll('.wizard-page')];
+  const stepTabs = [...document.querySelectorAll('.step-tab')];
+  const stepCount = document.getElementById('step-count');
+  const stepTitle = document.getElementById('step-title');
+  const progressFill = document.getElementById('progress-fill');
+  const backButton = document.getElementById('back-button');
+  const nextButton = document.getElementById('next-button');
+  const renderButton = document.getElementById('render-button');
+  let currentStep = 0;
+
+  function showStep(index, { focus = true } = {}) {
+    currentStep = Math.max(0, Math.min(index, wizardPages.length - 1));
+    const finalStep = currentStep === wizardPages.length - 1;
+
+    wizardPages.forEach((page, pageIndex) => {
+      const active = pageIndex === currentStep;
+      page.classList.toggle('is-active', active);
+      page.setAttribute('aria-hidden', String(!active));
+    });
+
+    stepTabs.forEach((tab, tabIndex) => {
+      if (tabIndex === currentStep) {
+        tab.setAttribute('aria-current', 'step');
+      } else {
+        tab.removeAttribute('aria-current');
+      }
+    });
+
+    stepCount.textContent = `Step ${currentStep + 1} of ${wizardPages.length}`;
+    stepTitle.textContent = wizardPages[currentStep].dataset.stepTitle;
+    progressFill.style.width = `${((currentStep + 1) / wizardPages.length) * 100}%`;
+    backButton.disabled = currentStep === 0;
+    nextButton.hidden = finalStep;
+    validateButton.hidden = !finalStep;
+    renderButton.hidden = !finalStep;
+
+    if (focus) {
+      wizardPages[currentStep].querySelector('input, select, textarea')?.focus({ preventScroll: true });
+    }
+  }
+
+  backButton.addEventListener('click', () => showStep(currentStep - 1));
+  nextButton.addEventListener('click', () => showStep(currentStep + 1));
+  stepTabs.forEach((tab) => {
+    tab.addEventListener('click', () => showStep(Number(tab.dataset.stepTarget)));
+  });
+  showStep(0, { focus: false });
 
   function showValidation(result) {
     validationResult.className = 'validation';
