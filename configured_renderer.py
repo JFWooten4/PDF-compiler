@@ -53,8 +53,8 @@ PAGE_NUMBER_STYLES = {
 }
 
 SECTION_NUMBERING_STYLES = {
-    "legal": "Legal — I.B.3.a.i",
-    "decimal": "Numbers — 1.2.3.4.5",
+    "legal": "Legal — I., B., 3., a), i)",
+    "decimal": "Numbers — 1., 2., 3.",
     "none": "No visible section numbers",
 }
 
@@ -123,7 +123,7 @@ def format_page_number(style: str, page: int, total: int) -> str:
 
 
 def format_section_number(style: str, counts: dict[int, int], level: int) -> str:
-    """Format the section number for a Markdown heading level."""
+    """Format only the current heading's number, with level-specific punctuation."""
     if style == "none":
         return ""
 
@@ -134,11 +134,10 @@ def format_section_number(style: str, counts: dict[int, int], level: int) -> str
         return ""
 
     if style == "decimal":
-        return ".".join(str(counts.get(item, 0)) for item in levels)
+        return f"{counts.get(level, 0)}."
     if style != "legal":
         raise ValueError(f"Unknown section-numbering style: {style}")
 
-    parts: list[str] = []
     legal_formatters = (
         lambda value: roman(value),
         lambda value: alpha(value),
@@ -146,12 +145,10 @@ def format_section_number(style: str, counts: dict[int, int], level: int) -> str
         lambda value: alpha(value).lower(),
         lambda value: roman(value).lower(),
     )
-    start_level = levels[0]
-    for item in levels:
-        depth = item - start_level
-        formatter = legal_formatters[min(depth, len(legal_formatters) - 1)]
-        parts.append(formatter(counts.get(item, 0)))
-    return ".".join(parts)
+    depth = level - levels[0]
+    formatter = legal_formatters[min(depth, len(legal_formatters) - 1)]
+    suffix = ")" if depth >= 3 else "."
+    return f"{formatter(counts.get(level, 0))}{suffix}"
 
 
 class SectionTrackingDoc(TrackingDoc):

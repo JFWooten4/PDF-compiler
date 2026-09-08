@@ -21,11 +21,13 @@ class SectionAndTocTests(unittest.TestCase):
 
     def test_legal_numbering_reaches_fifth_level(self):
         counts = {2: 1, 3: 2, 4: 3, 5: 1, 6: 1}
-        self.assertEqual(format_section_number("legal", counts, 6), "I.B.3.a.i")
+        for level, expected in ((2, "I."), (3, "B."), (4, "3."), (5, "a)"), (6, "i)")):
+            with self.subTest(level=level):
+                self.assertEqual(format_section_number("legal", counts, level), expected)
 
     def test_decimal_and_unumbered_modes(self):
         counts = {2: 1, 3: 2, 4: 3, 5: 1, 6: 1}
-        self.assertEqual(format_section_number("decimal", counts, 6), "1.2.3.1.1")
+        self.assertEqual(format_section_number("decimal", counts, 6), "1.")
         self.assertEqual(format_section_number("none", counts, 6), "")
 
     def test_defaults_preserve_existing_behavior(self):
@@ -68,7 +70,9 @@ class SectionAndTocTests(unittest.TestCase):
                 settings=LetterSettings(include_toc=True, section_numbering="legal"),
             )
             labels = [label for _level, label in renderer._collect_section_entries()]
-            self.assertEqual(labels[-1], "I.B.1.a.i Roman")
+            self.assertEqual(labels, ["I. One", "A. A", "B. B", "1. Three", "a) Lower", "i) Roman"])
+            outlines = [flowable.outline[0] for flowable in renderer.build_story() if getattr(flowable, "outline", None)]
+            self.assertEqual(outlines, labels)
             self.assertTrue(renderer._toc_block([2, 2, 2, 3, 3, 3]))
 
     def test_toc_marker_enables_toc_at_source_position(self):
@@ -87,7 +91,7 @@ class SectionAndTocTests(unittest.TestCase):
             texts = self.paragraph_texts(renderer.build_story(toc_page_numbers=[2]))
 
             self.assertLess(texts.index("Intro paragraph."), texts.index("Table of Contents"))
-            self.assertLess(texts.index("Table of Contents"), texts.index("I First"))
+            self.assertLess(texts.index("Table of Contents"), texts.index("I. First"))
             self.assertNotIn("[[TOC]]", texts)
 
     def test_toc_marker_overrides_default_toc_position(self):
