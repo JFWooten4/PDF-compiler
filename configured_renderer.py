@@ -69,7 +69,7 @@ class LetterSettings:
     date_value: str | None = None
     submission_subtitle: str = ""
     addressee: str = ""
-    addressee_box: bool = True
+    addressee_box: bool = False
     logo_treatment: str = "preserve"
     first_page_header: str = ""
     remaining_page_header: str = ""
