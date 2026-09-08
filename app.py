@@ -17,8 +17,9 @@ from configured_renderer import (
     SECTION_NUMBERING_STYLES,
     LetterSettings,
 )
+from first_page_layout import FirstPagePdfRenderer
 from legal_style_validator import validate_legal_style
-from typography_renderer import TypographyPdfRenderer, TypographySettings
+from typography_renderer import TypographySettings
 from url_validator import validate_urls
 
 app = Flask(__name__)
@@ -149,7 +150,7 @@ def render_pdf():
             return jsonify({"error": str(exc)}), 400
 
         output = root / "output.pdf"
-        renderer = TypographyPdfRenderer(
+        renderer = FirstPagePdfRenderer(
             source,
             output,
             settings=settings,
@@ -157,6 +158,7 @@ def render_pdf():
             logo=logo,
             signature=signature,
             wordmark=request.form.get("wordmark", "").strip() or None,
+            visible_document_title=request.form.get("document_title", "").strip() or None,
             title=request.form.get("title", "").strip() or None,
             author=request.form.get("author", "").strip() or None,
             subject=request.form.get("subject", "").strip() or None,
