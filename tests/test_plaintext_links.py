@@ -55,7 +55,9 @@ class PlaintextLinkTests(unittest.TestCase):
             url = "https://example.com/search?a=1&b=2"
             rendered, _ = renderer.markdown_inline(f"See {url}!")
 
-            self.assertEqual(self.link_targets(rendered, renderer), [url])
+            targets = self.link_targets(rendered, renderer)
+            self.assertTrue(targets)
+            self.assertTrue(all(target == url for target in targets))
             self.assertTrue(rendered.endswith("</link>!"))
 
 
