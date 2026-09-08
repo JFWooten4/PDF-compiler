@@ -7,10 +7,11 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph
 
-from configured_renderer import ConfiguredPdfRenderer, format_header_date
+from configured_renderer import format_header_date
+from typography_renderer import TypographyPdfRenderer
 
 
-class FirstPagePdfRenderer(ConfiguredPdfRenderer):
+class FirstPagePdfRenderer(TypographyPdfRenderer):
     """Configured renderer with a filing-style first-page identity block."""
 
     def __init__(self, *args, visible_document_title: str | None = None, **kwargs):
@@ -47,7 +48,7 @@ class FirstPagePdfRenderer(ConfiguredPdfRenderer):
 
         # The first-page header is deliberately the highest visible document element.
         if first_header:
-            canvas.setFont("Times-Bold", 9.5)
+            canvas.setFont("Times-Bold", self.typography.header_font_size)
             canvas.drawCentredString(self.page_width / 2, self.page_height - 0.36 * inch, first_header)
 
         if has_letterhead_row:
@@ -71,7 +72,7 @@ class FirstPagePdfRenderer(ConfiguredPdfRenderer):
                     mask="auto",
                 )
             elif self.wordmark:
-                canvas.setFont("Times-Bold", 18)
+                canvas.setFont("Times-Bold", self.typography.wordmark_font_size)
                 canvas.drawString(doc.leftMargin, row_top_y - 0.31 * inch, self.wordmark)
 
             if self.visible_document_title:
@@ -94,10 +95,10 @@ class FirstPagePdfRenderer(ConfiguredPdfRenderer):
 
             text_x = self.page_width - doc.rightMargin
             if date_text:
-                canvas.setFont("Times-Roman", 10.5)
+                canvas.setFont("Times-Roman", self.typography.date_font_size)
                 canvas.drawRightString(text_x, self.page_height - (row_top + 0.62) * inch, date_text)
             if subtitle:
-                canvas.setFont("Times-Bold", 9.5)
+                canvas.setFont("Times-Bold", self.typography.subtitle_font_size)
                 canvas.drawRightString(text_x, self.page_height - (row_top + 0.79) * inch, subtitle)
 
             canvas.setStrokeColor(colors.HexColor("#1F2937"))
