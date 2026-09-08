@@ -123,7 +123,7 @@ class TypographyPdfRenderer(ConfiguredPdfRenderer):
             page = "—"
             if page_numbers and index < len(page_numbers):
                 page = str(page_numbers[index])
-            rows.append([Paragraph(rendered_label, label_style), Paragraph(page, page_style)])
+            rows.append(self._toc_link_row(index, rendered_label, page, label_style, page_style))
 
         story = [Paragraph("Table of Contents", title_style)]
         if rows:

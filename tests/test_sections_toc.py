@@ -1,8 +1,11 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
+from reportlab.pdfgen.canvas import Canvas
 from reportlab.platypus import Paragraph
+from first_page_layout import FirstPagePdfRenderer
 
 from configured_renderer import (
     ConfiguredPdfRenderer,
@@ -122,6 +125,48 @@ class SectionAndTocTests(unittest.TestCase):
 
             self.assertIn("[[TOC]]", texts)
             self.assertNotIn("Table of Contents", texts)
+
+    def test_rendered_toc_links_resolve_to_each_section(self):
+        for renderer_class in (ConfiguredPdfRenderer, FirstPagePdfRenderer):
+            for marker in (False, True):
+                with self.subTest(renderer=renderer_class.__name__, marker=marker), TemporaryDirectory() as temp:
+                    root = Path(temp)
+                    source = root / "document.md"
+                    source.write_text(
+                        ("Intro.\n\n[[TOC]]\n\n" if marker else "")
+                        + "## Repeated title\n\n"
+                        + ("Body paragraph with enough text to span pages.\n\n" * 70)
+                        + "## Repeated title\n\n"
+                        + "### **Details** https://example.com\n\nEnd.\n",
+                        encoding="utf-8",
+                    )
+                    output = root / "output.pdf"
+                    renderer = renderer_class(
+                        source, output,
+                        settings=LetterSettings(include_toc=not marker, section_numbering="none"),
+                    )
+                    destinations = {}
+                    links = []
+                    original_bookmark = Canvas.bookmarkPage
+                    original_link = Canvas.linkRect
+
+                    def bookmark(canvas, key, *args, **kwargs):
+                        destinations[key] = canvas.getPageNumber()
+                        return original_bookmark(canvas, key, *args, **kwargs)
+
+                    def link(canvas, contents, destinationname, *args, **kwargs):
+                        links.append(destinationname)
+                        return original_link(canvas, contents, destinationname, *args, **kwargs)
+
+                    with patch.object(Canvas, "bookmarkPage", bookmark), patch.object(Canvas, "linkRect", link):
+                        renderer.build()
+
+                    self.assertGreater(destinations["section-1"], destinations["section-0"])
+                    self.assertEqual(destinations["section-2"], destinations["section-1"])
+                    for index in range(3):
+                        # Each render pass links both the title and page number.
+                        self.assertGreaterEqual(links.count(f"section-{index}"), 4)
+                    self.assertGreaterEqual(output.read_bytes().count(b"/Subtype /Link"), 6)
 
 
 if __name__ == "__main__":

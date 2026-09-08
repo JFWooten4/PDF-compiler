@@ -326,7 +326,7 @@ class ConfiguredPdfRenderer(PdfRenderer):
             page = "—"
             if page_numbers and index < len(page_numbers):
                 page = str(page_numbers[index])
-            rows.append([Paragraph(rendered_label, label_style), Paragraph(page, page_style)])
+            rows.append(self._toc_link_row(index, rendered_label, page, label_style, page_style))
 
         story = [Paragraph("Table of Contents", title_style)]
         if rows:
@@ -349,6 +349,16 @@ class ConfiguredPdfRenderer(PdfRenderer):
             story.append(Paragraph("No numbered sections found.", self.styles["BodyX"]))
         story.extend([Spacer(1, 10), PageBreak()])
         return story
+
+    @staticmethod
+    def _toc_link_row(index, rendered_label, page, label_style, page_style):
+        # The whole entry navigates internally, including titles containing URLs.
+        rendered_label = re.sub(r"</?link\b[^>]*>", "", rendered_label)
+        target = f"#section-{index}"
+        return [
+            Paragraph(f'<link href="{target}">{rendered_label}</link>', label_style),
+            Paragraph(f'<link href="{target}">{page}</link>', page_style),
+        ]
 
     def build_story(self, extra_pages: int = 0, toc_page_numbers: list[int] | None = None):
         """Build the visible document while always attaching section outlines."""
@@ -385,9 +395,14 @@ class ConfiguredPdfRenderer(PdfRenderer):
                 story.append(RefParagraph("<br/>".join(chunks), self.styles["QuoteX"], refs))
                 quote_lines = []
 
+        section_index = 0
+
         def add_heading(level: int, heading: str):
+            nonlocal section_index
             label = self._heading_label(level, heading, counts)
             rendered, refs = self.markdown_inline(label, True)
+            rendered = f'<a name="section-{section_index}"/>{rendered}'
+            section_index += 1
             style = {
                 2: self.styles["H1X"],
                 3: self.styles["H2X"],
