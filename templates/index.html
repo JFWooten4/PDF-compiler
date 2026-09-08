@@ -146,6 +146,8 @@
     small { color: var(--subtle); font-weight: 400; line-height: 1.4; }
     .check { display: flex; align-items: center; gap: 8px; font-weight: 600; }
     .check input { width: auto; }
+    .addressee-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .addressee-actions button { margin-left: auto; }
     .preview { display: none; max-width: 210px; max-height: 80px; object-fit: contain; border: 1px dashed var(--control-border); border-radius: 8px; padding: 6px; background: var(--surface-subtle); }
     .validation { display: none; margin: 0 22px 18px; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; background: var(--surface); font-size: 13px; }
     .validation.pass { display: block; color: var(--success); background: var(--success-bg); }
@@ -424,7 +426,10 @@
           <label class="full">Addressee
             <textarea name="addressee" placeholder="Vanessa A. Countryman&#10;Secretary&#10;Securities and Exchange Commission&#10;100 F Street NE&#10;Washington, DC 20549"></textarea>
           </label>
-          <label class="check full"><input type="checkbox" name="addressee_box" checked> Render addressee in a letterhead box</label>
+          <div class="addressee-actions full">
+            <label class="check"><input type="checkbox" name="addressee_box" checked> Render addressee in a letterhead box</label>
+            <button type="button" id="fill-countryman">Fill Countryman address</button>
+          </div>
         </div>
       </fieldset>
 
@@ -503,6 +508,12 @@
   });
 
   const form = document.getElementById('compiler-form');
+  document.getElementById('fill-countryman').addEventListener('click', () => {
+    const addressee = form.elements.namedItem('addressee');
+    addressee.value = addressee.placeholder;
+    addressee.dispatchEvent(new Event('input', { bubbles: true }));
+    addressee.focus();
+  });
   const validationResult = document.getElementById('validation-result');
   const validateButton = document.getElementById('validate-button');
   const wizardPages = [...document.querySelectorAll('.wizard-page')];
