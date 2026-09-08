@@ -86,7 +86,7 @@ class FirstPagePdfRenderer(TypographyPdfRenderer):
                     fontName="Times-Bold",
                     fontSize=14.5,
                     leading=17,
-                    alignment=1,
+                    alignment=2,
                     spaceBefore=0,
                     spaceAfter=0,
                 )
