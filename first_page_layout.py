@@ -103,13 +103,4 @@ class FirstPagePdfRenderer(TypographyPdfRenderer):
                 canvas.setFont("Times-Bold", self.typography.subtitle_font_size)
                 canvas.drawRightString(text_x, self.page_height - (row_top + 0.79) * inch, subtitle)
 
-            canvas.setStrokeColor(colors.HexColor("#1F2937"))
-            canvas.setLineWidth(0.7)
-            canvas.line(
-                doc.leftMargin,
-                self.page_height - (row_top + 0.98) * inch,
-                self.page_width - doc.rightMargin,
-                self.page_height - (row_top + 0.98) * inch,
-            )
-
         canvas.restoreState()
