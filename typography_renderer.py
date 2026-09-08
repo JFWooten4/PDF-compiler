@@ -193,8 +193,10 @@ class TypographyPdfRenderer(ConfiguredPdfRenderer):
 
         line_offset = 0.78
         if first_header:
-            canvas.setFont("Times-Roman", typography.header_font_size)
-            canvas.drawCentredString(self.page_width / 2, self.page_height - 0.77 * inch, first_header)
+            self._draw_header_text(
+                canvas, doc, first_header, self.page_height - 0.77 * inch, colors.black,
+                font_size=typography.header_font_size,
+            )
             line_offset = 0.92
 
         canvas.line(
@@ -212,8 +214,10 @@ class TypographyPdfRenderer(ConfiguredPdfRenderer):
         canvas.saveState()
         canvas.setFillColor(colors.HexColor("#374151"))
         canvas.setStrokeColor(colors.HexColor("#9AA3AE"))
-        canvas.setFont("Times-Roman", self.typography.header_font_size)
-        canvas.drawCentredString(self.page_width / 2, self.page_height - 0.55 * inch, text)
+        self._draw_header_text(
+            canvas, doc, text, self.page_height - 0.55 * inch, colors.HexColor("#374151"),
+            font_size=self.typography.header_font_size,
+        )
         canvas.setLineWidth(0.5)
         canvas.line(
             doc.leftMargin,

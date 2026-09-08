@@ -48,8 +48,10 @@ class FirstPagePdfRenderer(TypographyPdfRenderer):
 
         # The first-page header is deliberately the highest visible document element.
         if first_header:
-            canvas.setFont("Times-Bold", self.typography.header_font_size)
-            canvas.drawCentredString(self.page_width / 2, self.page_height - 0.36 * inch, first_header)
+            self._draw_header_text(
+                canvas, doc, first_header, self.page_height - 0.36 * inch, colors.black,
+                font_size=self.typography.header_font_size, font_name="Times-Bold",
+            )
 
         if has_letterhead_row:
             row_top = 0.80 if first_header else 0.40
