@@ -75,6 +75,29 @@ class SectionAndTocTests(unittest.TestCase):
             self.assertEqual(outlines, labels)
             self.assertTrue(renderer._toc_block([2, 2, 2, 3, 3, 3]))
 
+    def test_heading_and_toc_indentation_increases_evenly(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / "document.md"
+            source.write_text(
+                "## First\n### Second\n#### Third\n##### Fourth\n###### Fifth\n## Reset\n",
+                encoding="utf-8",
+            )
+            for renderer_class in (ConfiguredPdfRenderer, FirstPagePdfRenderer):
+                with self.subTest(renderer=renderer_class.__name__):
+                    renderer = renderer_class(
+                        source, root / "output.pdf",
+                        settings=LetterSettings(include_toc=True),
+                    )
+                    headings = [
+                        flowable for flowable in renderer.build_story()
+                        if getattr(flowable, "outline", None)
+                    ]
+                    expected = [0, 12, 24, 36, 48, 0]
+                    self.assertEqual([heading.style.leftIndent for heading in headings], expected)
+                    toc_table = renderer._toc_block()[1]
+                    self.assertEqual([row[0].style.leftIndent for row in toc_table._cellvalues], expected)
+
     def test_toc_marker_enables_toc_at_source_position(self):
         with TemporaryDirectory() as temp:
             root = Path(temp)

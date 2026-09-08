@@ -405,6 +405,11 @@ class ConfiguredPdfRenderer(PdfRenderer):
                 3: self.styles["H2X"],
                 4: self.styles["H3X"],
             }.get(level, self.styles["H4X"])
+            style = ParagraphStyle(
+                f"SectionHeading{level}",
+                parent=style,
+                leftIndent=max(0, level - 2) * 12,
+            )
             story.append(RefParagraph(rendered, style, refs, outline=(label, max(0, level - 2))))
 
         for raw_line in self.body_text.splitlines():
