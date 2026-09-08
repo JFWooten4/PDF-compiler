@@ -200,6 +200,7 @@ def _delete_generated_asset(path: Path) -> None:
 
 class PdfRenderer:
     url_re = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+    bare_url_re = re.compile(r"https?://[^\s<]+")
     note_ref_re = re.compile(r"\[\^([^\]]+)\]")
     note_number_ref_re = re.compile(r"\{\{\s*([^{}]+?)\s*\}\}")
 
@@ -397,6 +398,38 @@ class PdfRenderer:
 
         return self.note_number_ref_re.sub(replace, text)
 
+    @classmethod
+    def linkify_urls(cls, text: str) -> str:
+        """Wrap bare HTTP(S) URLs in ReportLab link markup."""
+
+        def replace(match: re.Match[str]) -> str:
+            url = match.group(0)
+            trailing = ""
+            while url and url[-1] in ".,;:!?":
+                trailing = url[-1] + trailing
+                url = url[:-1]
+
+            closing_pairs = {")": "(", "]": "[", "}": "{"}
+            while url and url[-1] in closing_pairs:
+                closing = url[-1]
+                opening = closing_pairs[closing]
+                if url.count(opening) >= url.count(closing):
+                    break
+                trailing = closing + trailing
+                url = url[:-1]
+
+            if not url:
+                return match.group(0)
+
+            href = html.escape(html.unescape(url), quote=True)
+            return f'<link href="{href}">{url}</link>{trailing}'
+
+        parts = re.split(r"(<[^>]+>)", text)
+        return "".join(
+            part if index % 2 else cls.bare_url_re.sub(replace, part)
+            for index, part in enumerate(parts)
+        )
+
     def markdown_inline(self, text: str, refs_on: bool = True) -> tuple[str, list[int]]:
         refs: list[int] = []
         if refs_on:
@@ -422,6 +455,7 @@ class PdfRenderer:
         text = re.sub(r"(?<![\w/])_([^_\n]+)_(?![\w/])", r"<i>\1</i>", text)
         text = re.sub(r"`([^`]+)`", r"\1", text)
         text = re.sub(r"@@FN(\d+)@@", r"<super>\1</super>", text)
+        text = self.linkify_urls(text)
         return text, refs
 
     def paragraph(self, text: str, style: ParagraphStyle) -> RefParagraph:
