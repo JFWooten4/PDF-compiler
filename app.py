@@ -15,10 +15,11 @@ from configured_renderer import (
     IMAGE_TREATMENTS,
     PAGE_NUMBER_STYLES,
     SECTION_NUMBERING_STYLES,
-    ConfiguredPdfRenderer,
     LetterSettings,
 )
+from first_page_layout import FirstPagePdfRenderer
 from legal_style_validator import validate_legal_style
+from typography_renderer import TypographySettings
 from url_validator import validate_urls
 
 app = Flask(__name__)
@@ -27,6 +28,11 @@ app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024
 
 def truthy(name: str) -> bool:
     return request.form.get(name) in {"1", "true", "on", "yes"}
+
+
+def form_float(name: str, default: float) -> float:
+    value = request.form.get(name, "").strip()
+    return default if not value else float(value)
 
 
 def submitted_markdown() -> tuple[str | None, str | None]:
@@ -108,30 +114,51 @@ def render_pdf():
             signature = root / f"signature-{signature_name}"
             signature_upload.save(signature)
 
-        settings = LetterSettings(
-            show_date=truthy("show_date"),
-            date_format=request.form.get("date_format", "month_day_year"),
-            custom_date_format=request.form.get("custom_date_format", "%B %d, %Y"),
-            date_value=request.form.get("date_value") or None,
-            submission_subtitle=request.form.get("submission_subtitle", "").strip(),
-            addressee=request.form.get("addressee", "").strip(),
-            addressee_box=truthy("addressee_box"),
-            logo_treatment=request.form.get("logo_treatment", "preserve"),
-            first_page_header=request.form.get("first_page_header", "").strip(),
-            remaining_page_header=request.form.get("remaining_page_header", "").strip(),
-            page_number_style=request.form.get("page_number_style", "none"),
-            include_toc=truthy("include_toc"),
-            section_numbering=request.form.get("section_numbering", "legal"),
-        )
+        try:
+            settings = LetterSettings(
+                show_date=truthy("show_date"),
+                date_format=request.form.get("date_format", "month_day_year"),
+                custom_date_format=request.form.get("custom_date_format", "%B %d, %Y"),
+                date_value=request.form.get("date_value") or None,
+                submission_subtitle=request.form.get("submission_subtitle", "").strip(),
+                addressee=request.form.get("addressee", "").strip(),
+                addressee_box=truthy("addressee_box"),
+                logo_treatment=request.form.get("logo_treatment", "preserve"),
+                first_page_header=request.form.get("first_page_header", "").strip(),
+                remaining_page_header=request.form.get("remaining_page_header", "").strip(),
+                page_number_style=request.form.get("page_number_style", "none"),
+                include_toc=truthy("include_toc"),
+                section_numbering=request.form.get("section_numbering", "legal"),
+            )
+            typography = TypographySettings(
+                body_font_size=form_float("body_font_size", 12.0),
+                line_spacing=form_float("line_spacing", 1.3),
+                h1_font_size=form_float("h1_font_size", 16.5),
+                h2_font_size=form_float("h2_font_size", 13.7),
+                h3_font_size=form_float("h3_font_size", 12.2),
+                h4_font_size=form_float("h4_font_size", 11.0),
+                footnote_font_size=form_float("footnote_font_size", 8.8),
+                toc_title_font_size=form_float("toc_title_font_size", 14.0),
+                toc_entry_font_size=form_float("toc_entry_font_size", 9.5),
+                wordmark_font_size=form_float("wordmark_font_size", 18.0),
+                date_font_size=form_float("date_font_size", 10.5),
+                subtitle_font_size=form_float("subtitle_font_size", 9.5),
+                header_font_size=form_float("header_font_size", 9.5),
+                page_number_font_size=form_float("page_number_font_size", 8.5),
+            )
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
 
         output = root / "output.pdf"
-        renderer = ConfiguredPdfRenderer(
+        renderer = FirstPagePdfRenderer(
             source,
             output,
             settings=settings,
+            typography=typography,
             logo=logo,
             signature=signature,
             wordmark=request.form.get("wordmark", "").strip() or None,
+            visible_document_title=request.form.get("document_title", "").strip() or None,
             title=request.form.get("title", "").strip() or None,
             author=request.form.get("author", "").strip() or None,
             subject=request.form.get("subject", "").strip() or None,

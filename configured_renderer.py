@@ -273,8 +273,27 @@ class ConfiguredPdfRenderer(PdfRenderer):
             entries.append((level, self._heading_label(level, match.group(2), counts)))
         return entries
 
-    def _toc_block(self, page_numbers: list[int] | None = None):
-        if not self.letter_settings.include_toc:
+    def _has_toc_marker(self) -> bool:
+        """Return whether a standalone TOC marker appears outside fenced code."""
+        in_fence = False
+        fence_marker: str | None = None
+        for raw_line in self.body_text.splitlines():
+            stripped = raw_line.lstrip()
+            if stripped.startswith("```") or stripped.startswith("~~~"):
+                marker = stripped[:3]
+                if not in_fence:
+                    in_fence = True
+                    fence_marker = marker
+                elif marker == fence_marker:
+                    in_fence = False
+                    fence_marker = None
+                continue
+            if not in_fence and raw_line.strip() == "[[TOC]]":
+                return True
+        return False
+
+    def _toc_block(self, page_numbers: list[int] | None = None, *, force: bool = False):
+        if not (force or self.letter_settings.include_toc):
             return []
 
         entries = self._collect_section_entries()
@@ -334,14 +353,17 @@ class ConfiguredPdfRenderer(PdfRenderer):
     def build_story(self, extra_pages: int = 0, toc_page_numbers: list[int] | None = None):
         """Build the visible document while always attaching section outlines."""
         story = []
+        toc_marker_present = self._has_toc_marker()
         if self.letter_settings.addressee:
             story.extend(self._addressee_block())
-        story.extend(self._toc_block(toc_page_numbers))
+        if self.letter_settings.include_toc and not toc_marker_present:
+            story.extend(self._toc_block(toc_page_numbers))
 
         paragraph_lines: list[str] = []
         quote_lines: list[str] = []
         in_fence = False
         fence_marker: str | None = None
+        toc_inserted = False
         counts = {level: 0 for level in range(2, 7)}
 
         def flush_paragraph():
@@ -392,6 +414,13 @@ class ConfiguredPdfRenderer(PdfRenderer):
                 if line.strip():
                     story.append(self.paragraph(line, self.styles["BodyX"]))
                 continue
+            if line.strip() == "[[TOC]]":
+                flush_paragraph()
+                flush_quote()
+                if not toc_inserted:
+                    story.extend(self._toc_block(toc_page_numbers, force=True))
+                    toc_inserted = True
+                continue
             if not line.strip():
                 flush_paragraph()
                 flush_quote()
@@ -437,7 +466,13 @@ class ConfiguredPdfRenderer(PdfRenderer):
                 flush_paragraph()
                 flush_quote()
                 marker = list_match.group(2) if list_match.group(2).endswith(".") else "-"
-                story.append(self.list_item(list_match.group(3), marker))
+                story.append(
+                    self.list_item(
+                        list_match.group(3),
+                        marker,
+                        self.list_indent_columns(list_match.group(1)),
+                    )
+                )
                 continue
 
             paragraph_lines.append(line)
@@ -457,7 +492,7 @@ class ConfiguredPdfRenderer(PdfRenderer):
         if self.keywords:
             canvas.setKeywords(self.keywords)
 
-    def _draw_header_text(self, canvas, doc, text: str, baseline: float, color):
+    def _draw_header_text(self, canvas, doc, text: str, baseline: float, color, *, font_size: float = 9.5, font_name: str = "Times-Roman"):
         """Render inline Markdown with clickable links in the header's single-line slot."""
         chunks = []
         start = 0
@@ -469,8 +504,8 @@ class ConfiguredPdfRenderer(PdfRenderer):
         suffix, _ = self.markdown_inline(text[start:], False)
         chunks.append(suffix)
         style = ParagraphStyle(
-            "Header", fontName="Times-Roman", fontSize=9.5,
-            leading=11.4, alignment=TA_CENTER, textColor=color,
+            "Header", fontName=font_name, fontSize=font_size,
+            leading=font_size * 1.2, alignment=TA_CENTER, textColor=color,
         )
         width = self.page_width - doc.leftMargin - doc.rightMargin
         block = KeepInFrame(width, style.leading, [Paragraph("".join(chunks), style)], mode="shrink")

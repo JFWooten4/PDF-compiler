@@ -59,6 +59,19 @@ class HeaderFooterSettingsTests(unittest.TestCase):
                 self.assertIn(label, pdf)
             self.assertNotIn(b'[First', pdf)
 
+    def test_web_renderer_preserves_header_links_with_custom_typography(self):
+        from app import app
+        response = app.test_client().post("/render", data={
+            "markdown": "Body paragraph.\n\n" * 150,
+            "first_page_header": "[First](https://example.com/first)",
+            "remaining_page_header": "[Later](https://example.com/later)",
+            "document_title": "Visible title",
+            "header_font_size": "12",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"/URI (https://example.com/first)", response.data)
+        self.assertIn(b"/URI (https://example.com/later)", response.data)
+
     def test_long_linked_header_fits_and_plain_text_is_escaped(self):
         with TemporaryDirectory() as temp:
             root = Path(temp)

@@ -200,6 +200,7 @@ def _delete_generated_asset(path: Path) -> None:
 
 class PdfRenderer:
     url_re = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+    bare_url_re = re.compile(r"https?://[^\s<]+")
     note_ref_re = re.compile(r"\[\^([^\]]+)\]")
     note_number_ref_re = re.compile(r"\{\{\s*([^{}]+?)\s*\}\}")
 
@@ -397,6 +398,38 @@ class PdfRenderer:
 
         return self.note_number_ref_re.sub(replace, text)
 
+    @classmethod
+    def linkify_urls(cls, text: str) -> str:
+        """Wrap bare HTTP(S) URLs in ReportLab link markup."""
+
+        def replace(match: re.Match[str]) -> str:
+            url = match.group(0)
+            trailing = ""
+            while url and url[-1] in ".,;:!?":
+                trailing = url[-1] + trailing
+                url = url[:-1]
+
+            closing_pairs = {")": "(", "]": "[", "}": "{"}
+            while url and url[-1] in closing_pairs:
+                closing = url[-1]
+                opening = closing_pairs[closing]
+                if url.count(opening) >= url.count(closing):
+                    break
+                trailing = closing + trailing
+                url = url[:-1]
+
+            if not url:
+                return match.group(0)
+
+            href = html.escape(html.unescape(url), quote=True)
+            return f'<link href="{href}">{url}</link>{trailing}'
+
+        parts = re.split(r"(<[^>]+>)", text)
+        return "".join(
+            part if index % 2 else cls.bare_url_re.sub(replace, part)
+            for index, part in enumerate(parts)
+        )
+
     def markdown_inline(self, text: str, refs_on: bool = True) -> tuple[str, list[int]]:
         refs: list[int] = []
         if refs_on:
@@ -422,15 +455,38 @@ class PdfRenderer:
         text = re.sub(r"(?<![\w/])_([^_\n]+)_(?![\w/])", r"<i>\1</i>", text)
         text = re.sub(r"`([^`]+)`", r"\1", text)
         text = re.sub(r"@@FN(\d+)@@", r"<super>\1</super>", text)
+        text = self.linkify_urls(text)
         return text, refs
 
     def paragraph(self, text: str, style: ParagraphStyle) -> RefParagraph:
         rendered, refs = self.markdown_inline(text, True)
         return RefParagraph(rendered, style, refs)
 
-    def list_item(self, text: str, marker: str = "-") -> RefParagraph:
+    @staticmethod
+    def list_indent_columns(indent: str) -> int:
+        """Return Markdown indentation width, expanding tabs to four-column stops."""
+        return len(indent.expandtabs(4))
+
+    def list_item(
+        self,
+        text: str,
+        marker: str = "-",
+        indent_columns: int = 0,
+    ) -> RefParagraph:
         rendered, refs = self.markdown_inline(text, True)
-        return RefParagraph(rendered, self.styles["ListX"], refs, bulletText=marker)
+        base_style = self.styles["ListX"]
+        indent_columns = max(0, indent_columns)
+        if indent_columns:
+            offset = indent_columns * 0.075 * inch
+            style = ParagraphStyle(
+                f"ListXIndent{indent_columns}",
+                parent=base_style,
+                leftIndent=base_style.leftIndent + offset,
+                bulletIndent=base_style.bulletIndent + offset,
+            )
+        else:
+            style = base_style
+        return RefParagraph(rendered, style, refs, bulletText=marker)
 
     @staticmethod
     def clean_heading(text: str) -> str:
@@ -556,7 +612,13 @@ class PdfRenderer:
                 flush_paragraph()
                 flush_quote()
                 marker = list_match.group(2) if list_match.group(2).endswith(".") else "-"
-                story.append(self.list_item(list_match.group(3), marker))
+                story.append(
+                    self.list_item(
+                        list_match.group(3),
+                        marker,
+                        self.list_indent_columns(list_match.group(1)),
+                    )
+                )
                 continue
 
             paragraph_lines.append(line)

@@ -2,6 +2,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
+from reportlab.platypus import Paragraph
+
 from configured_renderer import (
     ConfiguredPdfRenderer,
     LetterSettings,
@@ -10,6 +12,10 @@ from configured_renderer import (
 
 
 class SectionAndTocTests(unittest.TestCase):
+    @staticmethod
+    def paragraph_texts(story):
+        return [flowable.getPlainText() for flowable in story if isinstance(flowable, Paragraph)]
+
     def test_legal_numbering_reaches_fifth_level(self):
         counts = {2: 1, 3: 2, 4: 3, 5: 1, 6: 1}
         self.assertEqual(format_section_number("legal", counts, 6), "I.B.3.a.i")
@@ -61,6 +67,61 @@ class SectionAndTocTests(unittest.TestCase):
             labels = [label for _level, label in renderer._collect_section_entries()]
             self.assertEqual(labels[-1], "I.B.1.a.i Roman")
             self.assertTrue(renderer._toc_block([2, 2, 2, 3, 3, 3]))
+
+    def test_toc_marker_enables_toc_at_source_position(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / "document.md"
+            source.write_text(
+                "Intro paragraph.\n\n[[TOC]]\n\n## First\n\nText\n",
+                encoding="utf-8",
+            )
+            renderer = ConfiguredPdfRenderer(
+                source,
+                root / "output.pdf",
+                settings=LetterSettings(include_toc=False, section_numbering="legal"),
+            )
+            texts = self.paragraph_texts(renderer.build_story(toc_page_numbers=[2]))
+
+            self.assertLess(texts.index("Intro paragraph."), texts.index("Table of Contents"))
+            self.assertLess(texts.index("Table of Contents"), texts.index("I First"))
+            self.assertNotIn("[[TOC]]", texts)
+
+    def test_toc_marker_overrides_default_toc_position(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / "document.md"
+            source.write_text(
+                "Intro paragraph.\n\n[[TOC]]\n\n## First\n",
+                encoding="utf-8",
+            )
+            renderer = ConfiguredPdfRenderer(
+                source,
+                root / "output.pdf",
+                settings=LetterSettings(include_toc=True, section_numbering="legal"),
+            )
+            texts = self.paragraph_texts(renderer.build_story(toc_page_numbers=[2]))
+
+            self.assertEqual(texts.count("Table of Contents"), 1)
+            self.assertLess(texts.index("Intro paragraph."), texts.index("Table of Contents"))
+
+    def test_toc_marker_inside_fenced_code_stays_literal(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / "document.md"
+            source.write_text(
+                "```text\n[[TOC]]\n```\n\n## First\n",
+                encoding="utf-8",
+            )
+            renderer = ConfiguredPdfRenderer(
+                source,
+                root / "output.pdf",
+                settings=LetterSettings(include_toc=False, section_numbering="legal"),
+            )
+            texts = self.paragraph_texts(renderer.build_story())
+
+            self.assertIn("[[TOC]]", texts)
+            self.assertNotIn("Table of Contents", texts)
 
 
 if __name__ == "__main__":
