@@ -8,6 +8,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from flask import Flask, jsonify, render_template, request, send_file
+import pymupdf
 from werkzeug.utils import secure_filename
 
 from configured_renderer import (
@@ -24,6 +25,10 @@ from url_validator import validate_urls
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024
+
+LETTERHEAD_PRESETS = {
+    "whydrs": Path(app.root_path) / "static" / "letterheads" / "whydrs-logo.svg",
+}
 
 
 def truthy(name: str) -> bool:
@@ -63,13 +68,18 @@ def preflight_issues(markdown: str) -> list[dict[str, object]]:
 
 @app.get("/")
 def index():
-    return render_template(
+    page = render_template(
         "index.html",
         date_formats=DATE_FORMATS,
         image_treatments=IMAGE_TREATMENTS,
         page_number_styles=PAGE_NUMBER_STYLES,
         section_numbering_styles=SECTION_NUMBERING_STYLES,
         today=date.today().isoformat(),
+    )
+    return page.replace(
+        "</body>",
+        '  <script src="/static/letterhead-presets.js"></script>\n</body>',
+        1,
     )
 
 
@@ -89,6 +99,10 @@ def render_pdf():
     if error:
         return jsonify({"error": error}), 400
 
+    preset = request.form.get("letterhead_preset", "").strip()
+    if preset and preset not in LETTERHEAD_PRESETS:
+        return jsonify({"error": f"Unknown letterhead preset: {preset}"}), 400
+
     source_upload = request.files.get("source")
     with TemporaryDirectory(prefix="pdf-compiler-") as temp:
         root = Path(temp)
@@ -106,6 +120,14 @@ def render_pdf():
             logo_name = secure_filename(logo_upload.filename) or "logo.png"
             logo = root / logo_name
             logo_upload.save(logo)
+        elif preset:
+            logo = LETTERHEAD_PRESETS[preset]
+            if not logo.exists():
+                return jsonify({"error": f"Letterhead preset asset is missing: {preset}"}), 500
+            # Render the bundled SVG for the image pipeline; no raster asset is required.
+            with pymupdf.open(logo) as artwork:
+                logo = root / "preset-logo.png"
+                artwork[0].get_pixmap(matrix=pymupdf.Matrix(2, 2), alpha=True).save(logo)
 
         signature = None
         signature_upload = request.files.get("signature")
