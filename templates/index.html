@@ -58,7 +58,8 @@
     html { background: var(--bg); }
     body { margin: 0; background: var(--bg); color: var(--text); }
     main { max-width: 860px; margin: 0 auto; padding: 24px 18px 48px; }
-    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 16px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; margin-bottom: 16px; }
+    .topbar .action-group { margin-left: auto; }
     h1 { margin: 0 0 3px; font-size: 26px; letter-spacing: -.02em; }
     .intro { margin: 0; color: var(--muted); font-size: 14px; }
     form { margin: 0; }
@@ -83,6 +84,7 @@
     .progress-fill { width: 11.111%; height: 100%; border-radius: inherit; background: var(--progress); transition: width .18s ease; }
     .step-tabs {
       display: flex;
+      align-items: center;
       gap: 5px;
       overflow-x: auto;
       padding: 12px 18px;
@@ -94,7 +96,7 @@
       flex: 0 0 auto;
       border: 1px solid transparent;
       border-radius: 999px;
-      padding: 6px 9px;
+      padding: 6px 6px;
       background: transparent;
       color: var(--muted);
       font: inherit;
@@ -183,12 +185,12 @@
     }
     button:hover { opacity: .9; }
     button:disabled { cursor: default; opacity: .45; }
-    #render-button { background: #B42318; color: white; opacity: 1; }
+    #render-button { flex: 0 0 auto; margin-left: auto; background: #B42318; color: white; opacity: 1; }
     #render-button.ready { background: #2E732E; }
-    #compile-status { color: var(--muted); font-size: 13px; }
+    #compile-status { margin: 12px 18px; color: var(--muted); font-size: 13px; }
     .secondary { border-color: var(--border); background: var(--surface); color: var(--text); }
     .theme-toggle { flex: 0 0 auto; padding: 8px 10px; border-color: var(--border); background: var(--surface); color: var(--text); box-shadow: 0 3px 10px var(--shadow); }
-    .final-action[hidden], .next-action[hidden] { display: none; }
+    .next-action[hidden] { display: none; }
     .bug-report {
       position: fixed;
       right: 16px;
@@ -232,7 +234,10 @@
       <h1>PDF Compiler</h1>
       <p class="intro">Configure one section at a time, then validate or render your PDF.</p>
     </div>
-    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle color theme"></button>
+    <div class="action-group">
+      <button id="validate-button" class="secondary" type="button">Validate document</button>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle color theme"></button>
+    </div>
   </div>
 
   <form id="compiler-form" action="/render" method="post" enctype="multipart/form-data" target="_blank">
@@ -255,7 +260,9 @@
         <button class="step-tab" type="button" data-step-target="6">Letterhead</button>
         <button class="step-tab" type="button" data-step-target="7">Headers</button>
         <button class="step-tab" type="button" data-step-target="8">Style</button>
+        <button id="render-button" type="submit" aria-describedby="compile-status" disabled>Compile PDF</button>
       </nav>
+      <p id="compile-status" role="status" aria-live="polite">Add a document to prepare compilation.</p>
 
       <fieldset class="wizard-page" data-step-title="Document">
         <legend>Document</legend>
@@ -476,7 +483,6 @@
             </div>
           </div>
         </div>
-        <p id="compile-status" role="status" aria-live="polite">Add a document to prepare compilation.</p>
       </fieldset>
 
       <div id="validation-result" class="validation" role="status" aria-live="polite"></div>
@@ -484,9 +490,7 @@
       <div class="wizard-actions">
         <button id="back-button" class="secondary" type="button">Back</button>
         <div class="action-group">
-          <button id="validate-button" class="secondary final-action" type="button" hidden>Validate document</button>
           <button id="next-button" class="next-action" type="button">Next</button>
-          <button id="render-button" class="final-action" type="submit" aria-describedby="compile-status" disabled hidden>Compile PDF</button>
         </div>
       </div>
     </div>
@@ -579,9 +583,7 @@
     renderButton.disabled = true;
     renderButton.classList.remove('ready');
     compileStatus.textContent = 'Document changed. Preparing compilation…';
-    if (currentStep === wizardPages.length - 1) {
-      compileTimer = setTimeout(prepareCompilation, 400);
-    }
+    compileTimer = setTimeout(prepareCompilation, 400);
   }
 
   async function prepareCompilation() {
@@ -652,9 +654,6 @@
     progressFill.style.width = `${((currentStep + 1) / wizardPages.length) * 100}%`;
     backButton.disabled = currentStep === 0;
     nextButton.hidden = finalStep;
-    validateButton.hidden = !finalStep;
-    renderButton.hidden = !finalStep;
-    if (finalStep) prepareCompilation();
 
     if (focus) {
       wizardPages[currentStep].querySelector('input, select, textarea')?.focus({ preventScroll: true });
