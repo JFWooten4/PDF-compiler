@@ -353,8 +353,8 @@ class ConfiguredPdfRenderer(PdfRenderer):
         rendered_label = re.sub(r"</?link\b[^>]*>", "", rendered_label)
         target = f"#section-{index}"
         return [
-            Paragraph(f'<link href="{target}" color="{LINK_COLOR}">{rendered_label}</link>', label_style),
-            Paragraph(f'<link href="{target}" color="{LINK_COLOR}">{page}</link>', page_style),
+            Paragraph(f'<link href="{target}">{rendered_label}</link>', label_style),
+            Paragraph(f'<link href="{target}">{page}</link>', page_style),
         ]
 
     def build_story(self, extra_pages: int = 0, toc_page_numbers: list[int] | None = None):
