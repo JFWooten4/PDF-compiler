@@ -53,6 +53,17 @@ class RefParagraph(Paragraph):
         self.outline = outline
         super().__init__(text, style, bulletText=bulletText, **kwargs)
 
+    def draw(self):
+        accent = getattr(self.style, "quoteAccent", None)
+        if accent is not None:
+            self.canv.saveState()
+            self.canv.setStrokeColor(accent)
+            self.canv.setLineWidth(2)
+            x = self.style.leftIndent - 10
+            self.canv.line(x, 0, x, self.height)
+            self.canv.restoreState()
+        super().draw()
+
 
 class TrackingDoc(SimpleDocTemplate):
     def __init__(self, *args, **kwargs):
@@ -353,13 +364,11 @@ class PdfRenderer:
             ParagraphStyle(
                 "QuoteX",
                 parent=styles["BodyX"],
-                leftIndent=0.28 * inch,
+                leftIndent=0.25 * inch,
                 rightIndent=0.18 * inch,
-                borderColor=colors.HexColor("#AAB2BD"),
-                borderWidth=0.6,
-                borderPadding=6,
-                spaceBefore=5,
-                spaceAfter=7,
+                quoteAccent=colors.HexColor(self.link_color),
+                spaceBefore=10,
+                spaceAfter=12,
             )
         )
         styles.add(
