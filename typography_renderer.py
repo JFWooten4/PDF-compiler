@@ -7,7 +7,8 @@ from dataclasses import dataclass
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.platypus import PageBreak, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import PageBreak, Spacer, Table, TableStyle
+from emoji_renderer import EmojiParagraph as Paragraph
 
 from configured_renderer import ConfiguredPdfRenderer, format_header_date, format_page_number
 
@@ -123,7 +124,7 @@ class TypographyPdfRenderer(ConfiguredPdfRenderer):
             page = "—"
             if page_numbers and index < len(page_numbers):
                 page = str(page_numbers[index])
-            rows.append([Paragraph(rendered_label, label_style), Paragraph(page, page_style)])
+            rows.append(self._toc_link_row(index, rendered_label, page, label_style, page_style))
 
         story = [Paragraph("Table of Contents", title_style)]
         if rows:
@@ -213,17 +214,9 @@ class TypographyPdfRenderer(ConfiguredPdfRenderer):
             return
         canvas.saveState()
         canvas.setFillColor(colors.HexColor("#374151"))
-        canvas.setStrokeColor(colors.HexColor("#9AA3AE"))
         self._draw_header_text(
             canvas, doc, text, self.page_height - 0.55 * inch, colors.HexColor("#374151"),
             font_size=self.typography.header_font_size,
-        )
-        canvas.setLineWidth(0.5)
-        canvas.line(
-            doc.leftMargin,
-            self.page_height - 0.73 * inch,
-            self.page_width - doc.rightMargin,
-            self.page_height - 0.73 * inch,
         )
         canvas.restoreState()
 

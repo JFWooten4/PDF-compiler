@@ -5,7 +5,7 @@ from __future__ import annotations
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.platypus import Paragraph
+from emoji_renderer import EmojiParagraph as Paragraph
 
 from configured_renderer import format_header_date
 from typography_renderer import TypographyPdfRenderer
@@ -86,7 +86,7 @@ class FirstPagePdfRenderer(TypographyPdfRenderer):
                     fontName="Times-Bold",
                     fontSize=14.5,
                     leading=17,
-                    alignment=1,
+                    alignment=2,
                     spaceBefore=0,
                     spaceAfter=0,
                 )
@@ -102,14 +102,5 @@ class FirstPagePdfRenderer(TypographyPdfRenderer):
             if subtitle:
                 canvas.setFont("Times-Bold", self.typography.subtitle_font_size)
                 canvas.drawRightString(text_x, self.page_height - (row_top + 0.79) * inch, subtitle)
-
-            canvas.setStrokeColor(colors.HexColor("#1F2937"))
-            canvas.setLineWidth(0.7)
-            canvas.line(
-                doc.leftMargin,
-                self.page_height - (row_top + 0.98) * inch,
-                self.page_width - doc.rightMargin,
-                self.page_height - (row_top + 0.98) * inch,
-            )
 
         canvas.restoreState()

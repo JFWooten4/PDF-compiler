@@ -21,13 +21,13 @@ from reportlab.platypus import (
     Image,
     KeepInFrame,
     PageBreak,
-    Paragraph,
     Spacer,
     Table,
     TableStyle,
 )
 
 from pdf_compiler import PdfRenderer, RefParagraph, TrackingDoc, alpha, roman
+from emoji_renderer import EmojiParagraph as Paragraph
 
 
 DATE_FORMATS = {
@@ -53,8 +53,8 @@ PAGE_NUMBER_STYLES = {
 }
 
 SECTION_NUMBERING_STYLES = {
-    "legal": "Legal — I.B.3.a.i",
-    "decimal": "Numbers — 1.2.3.4.5",
+    "legal": "Legal — I., B., 3., a), i)",
+    "decimal": "Numbers — 1., 2., 3.",
     "none": "No visible section numbers",
 }
 
@@ -69,7 +69,7 @@ class LetterSettings:
     date_value: str | None = None
     submission_subtitle: str = ""
     addressee: str = ""
-    addressee_box: bool = True
+    addressee_box: bool = False
     logo_treatment: str = "preserve"
     first_page_header: str = ""
     remaining_page_header: str = ""
@@ -123,7 +123,7 @@ def format_page_number(style: str, page: int, total: int) -> str:
 
 
 def format_section_number(style: str, counts: dict[int, int], level: int) -> str:
-    """Format the section number for a Markdown heading level."""
+    """Format only the current heading's number, with level-specific punctuation."""
     if style == "none":
         return ""
 
@@ -134,11 +134,10 @@ def format_section_number(style: str, counts: dict[int, int], level: int) -> str
         return ""
 
     if style == "decimal":
-        return ".".join(str(counts.get(item, 0)) for item in levels)
+        return f"{counts.get(level, 0)}."
     if style != "legal":
         raise ValueError(f"Unknown section-numbering style: {style}")
 
-    parts: list[str] = []
     legal_formatters = (
         lambda value: roman(value),
         lambda value: alpha(value),
@@ -146,12 +145,10 @@ def format_section_number(style: str, counts: dict[int, int], level: int) -> str
         lambda value: alpha(value).lower(),
         lambda value: roman(value).lower(),
     )
-    start_level = levels[0]
-    for item in levels:
-        depth = item - start_level
-        formatter = legal_formatters[min(depth, len(legal_formatters) - 1)]
-        parts.append(formatter(counts.get(item, 0)))
-    return ".".join(parts)
+    depth = level - levels[0]
+    formatter = legal_formatters[min(depth, len(legal_formatters) - 1)]
+    suffix = ")" if depth >= 3 else "."
+    return f"{formatter(counts.get(level, 0))}{suffix}"
 
 
 class SectionTrackingDoc(TrackingDoc):
@@ -326,7 +323,7 @@ class ConfiguredPdfRenderer(PdfRenderer):
             page = "—"
             if page_numbers and index < len(page_numbers):
                 page = str(page_numbers[index])
-            rows.append([Paragraph(rendered_label, label_style), Paragraph(page, page_style)])
+            rows.append(self._toc_link_row(index, rendered_label, page, label_style, page_style))
 
         story = [Paragraph("Table of Contents", title_style)]
         if rows:
@@ -349,6 +346,16 @@ class ConfiguredPdfRenderer(PdfRenderer):
             story.append(Paragraph("No numbered sections found.", self.styles["BodyX"]))
         story.extend([Spacer(1, 10), PageBreak()])
         return story
+
+    @staticmethod
+    def _toc_link_row(index, rendered_label, page, label_style, page_style):
+        # The whole entry navigates internally, including titles containing URLs.
+        rendered_label = re.sub(r"</?(?:link|u)\b[^>]*>", "", rendered_label)
+        target = f"#section-{index}"
+        return [
+            Paragraph(f'<link href="{target}">{rendered_label}</link>', label_style),
+            Paragraph(f'<link href="{target}">{page}</link>', page_style),
+        ]
 
     def build_story(self, extra_pages: int = 0, toc_page_numbers: list[int] | None = None):
         """Build the visible document while always attaching section outlines."""
@@ -385,14 +392,24 @@ class ConfiguredPdfRenderer(PdfRenderer):
                 story.append(RefParagraph("<br/>".join(chunks), self.styles["QuoteX"], refs))
                 quote_lines = []
 
+        section_index = 0
+
         def add_heading(level: int, heading: str):
+            nonlocal section_index
             label = self._heading_label(level, heading, counts)
             rendered, refs = self.markdown_inline(label, True)
+            rendered = f'<a name="section-{section_index}"/>{rendered}'
+            section_index += 1
             style = {
                 2: self.styles["H1X"],
                 3: self.styles["H2X"],
                 4: self.styles["H3X"],
             }.get(level, self.styles["H4X"])
+            style = ParagraphStyle(
+                f"SectionHeading{level}",
+                parent=style,
+                leftIndent=max(0, level - 2) * 12,
+            )
             story.append(RefParagraph(rendered, style, refs, outline=(label, max(0, level - 2))))
 
         for raw_line in self.body_text.splitlines():
@@ -499,7 +516,9 @@ class ConfiguredPdfRenderer(PdfRenderer):
         for match in self.url_re.finditer(text):
             prefix, _ = self.markdown_inline(text[start:match.start()], False)
             label, _ = self.markdown_inline(match.group(1), False)
-            chunks.extend((prefix, f'<a href="{escape(match.group(2), quote=True)}">{label}</a>'))
+            if self.underline_links:
+                label = f"<u>{label}</u>"
+            chunks.extend((prefix, f'<a href="{escape(match.group(2), quote=True)}" color="{self.link_color}">{label}</a>'))
             start = match.end()
         suffix, _ = self.markdown_inline(text[start:], False)
         chunks.append(suffix)
@@ -576,16 +595,8 @@ class ConfiguredPdfRenderer(PdfRenderer):
             return
         canvas.saveState()
         canvas.setFillColor(colors.HexColor("#374151"))
-        canvas.setStrokeColor(colors.HexColor("#9AA3AE"))
         self._draw_header_text(
             canvas, doc, text, self.page_height - 0.55 * inch, colors.HexColor("#374151"),
-        )
-        canvas.setLineWidth(0.5)
-        canvas.line(
-            doc.leftMargin,
-            self.page_height - 0.73 * inch,
-            self.page_width - doc.rightMargin,
-            self.page_height - 0.73 * inch,
         )
         canvas.restoreState()
 

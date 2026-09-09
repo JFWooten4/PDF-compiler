@@ -10,6 +10,11 @@ python -m pip install -r requirements.txt
 
 ## Web configurator
 
+Emoji in paragraph text, section headings, the table of contents, and document
+titles render as inline color images using bundled Twemoji artwork. No emoji font
+or network connection is required. Artwork credits and licensing are in
+[the emoji asset notes](assets/twemoji/README.md).
+
 Run the web app:
 
 ```bash

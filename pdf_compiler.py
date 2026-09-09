@@ -27,13 +27,16 @@ from reportlab.platypus import (
     HRFlowable,
     Image,
     PageBreak,
-    Paragraph,
     SimpleDocTemplate,
     Spacer,
 )
 
 
+from emoji_renderer import EmojiParagraph as Paragraph
+
+
 SIGNATURE_SENTINEL = "@@PDF_COMPILER_SIGNATURE_BLOCK@@"
+LINK_COLOR = "#2E732E"
 
 
 class RefParagraph(Paragraph):
@@ -216,6 +219,8 @@ class PdfRenderer:
         author: str | None = None,
         start_heading: str | None = None,
         smart_quotes: bool = False,
+        underline_links: bool = True,
+        link_color: str = LINK_COLOR,
     ):
         self.source = source
         self.output = output
@@ -225,6 +230,10 @@ class PdfRenderer:
         self.title = title or source.stem
         self.author = author or ""
         self.smart_quotes = smart_quotes
+        self.underline_links = underline_links
+        if not re.fullmatch(r"#[0-9a-fA-F]{6}", link_color):
+            raise ValueError("Link color must be a six-digit hex color, such as #2E732E.")
+        self.link_color = link_color.upper()
         self.order: list[str] = []
         self.nums: dict[str, int] = {}
         self._signature_asset: Path | None = None
@@ -399,7 +408,7 @@ class PdfRenderer:
         return self.note_number_ref_re.sub(replace, text)
 
     @classmethod
-    def linkify_urls(cls, text: str) -> str:
+    def linkify_urls(cls, text: str, *, underline: bool = True, color: str = LINK_COLOR) -> str:
         """Wrap bare HTTP(S) URLs in ReportLab link markup."""
 
         def replace(match: re.Match[str]) -> str:
@@ -422,7 +431,8 @@ class PdfRenderer:
                 return match.group(0)
 
             href = html.escape(html.unescape(url), quote=True)
-            return f'<link href="{href}">{url}</link>{trailing}'
+            label = f"<u>{url}</u>" if underline else url
+            return f'<link href="{href}" color="{color}">{label}</link>{trailing}'
 
         parts = re.split(r"(<[^>]+>)", text)
         return "".join(
@@ -455,7 +465,7 @@ class PdfRenderer:
         text = re.sub(r"(?<![\w/])_([^_\n]+)_(?![\w/])", r"<i>\1</i>", text)
         text = re.sub(r"`([^`]+)`", r"\1", text)
         text = re.sub(r"@@FN(\d+)@@", r"<super>\1</super>", text)
-        text = self.linkify_urls(text)
+        text = self.linkify_urls(text, underline=self.underline_links, color=self.link_color)
         return text, refs
 
     def paragraph(self, text: str, style: ParagraphStyle) -> RefParagraph:
