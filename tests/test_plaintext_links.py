@@ -38,6 +38,17 @@ class PlaintextLinkTests(unittest.TestCase):
 
             self.assertEqual(self.link_targets(rendered, renderer), [url])
 
+    def test_underlining_defaults_on_and_can_be_disabled(self):
+        with TemporaryDirectory() as temp:
+            renderer = self.make_renderer(Path(temp))
+            self.assertTrue(renderer.underline_links)
+            for enabled in (True, False):
+                renderer.underline_links = enabled
+                rendered, _ = renderer.markdown_inline("https://example.com")
+                paragraph = Paragraph(rendered, renderer.styles["BodyX"])
+                self.assertEqual(any(f.us_lines for f in paragraph.frags), enabled)
+                self.assertEqual(self.link_targets(rendered, renderer), ["https://example.com"])
+
     def test_markdown_link_preserves_visible_format_and_clicks_url(self):
         with TemporaryDirectory() as temp:
             renderer = self.make_renderer(Path(temp))
