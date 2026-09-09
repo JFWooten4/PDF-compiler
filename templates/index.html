@@ -81,7 +81,7 @@
     .step-count { color: var(--muted); font-size: 12px; font-weight: 750; text-transform: uppercase; letter-spacing: .08em; }
     .step-title { color: var(--text); font-size: 13px; font-weight: 700; }
     .progress-track { height: 3px; overflow: hidden; border-radius: 999px; background: var(--border); }
-    .progress-fill { width: 11.111%; height: 100%; border-radius: inherit; background: var(--progress); transition: width .18s ease; }
+    .progress-fill { width: 10%; height: 100%; border-radius: inherit; background: var(--progress); transition: width .18s ease; }
     .step-tabs {
       display: flex;
       align-items: center;
@@ -157,7 +157,7 @@
     .addressee-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
     .addressee-actions button { margin-left: auto; }
     .preview { display: none; max-width: 210px; max-height: 80px; object-fit: contain; border: 1px dashed var(--control-border); border-radius: 8px; padding: 6px; background: var(--surface-subtle); }
-    .validation { display: none; margin: 0 22px 18px; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; background: var(--surface); font-size: 13px; }
+    .validation { display: none; margin: 16px 0 0; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; background: var(--surface); font-size: 13px; }
     .validation.pass { display: block; color: var(--success); background: var(--success-bg); }
     .validation.fail { display: block; color: var(--error); background: var(--error-bg); }
     .validation strong { display: block; margin-bottom: 5px; }
@@ -187,7 +187,8 @@
     }
     button:hover { opacity: .9; }
     button:disabled { cursor: default; opacity: .45; }
-    #render-button { flex: 0 0 auto; margin-left: auto; background: var(--surface-subtle); color: var(--muted); opacity: 1; }
+    .compile-actions { margin-top: 20px; text-align: center; }
+    #render-button { background: var(--surface-subtle); color: var(--muted); opacity: 1; }
     #render-button.ready { background: #2E732E; color: white; }
     #compile-status { margin: 12px 0 0; color: var(--muted); font-size: 13px; }
     .secondary { border-color: var(--border); background: var(--surface); color: var(--text); }
@@ -223,7 +224,6 @@
       .wizard-progress { padding: 12px 14px 10px; }
       .step-tabs { padding: 10px 14px; }
       legend { padding-top: 18px; }
-      .validation { margin: 0 16px 16px; }
       .wizard-actions { padding: 11px 14px; }
       .bug-report { right: 10px; bottom: 10px; }
     }
@@ -237,7 +237,6 @@
       <p class="intro">Configure one section at a time, then validate or render your PDF.</p>
     </div>
     <div class="action-group">
-      <button id="validate-button" class="secondary" type="button">Validate document</button>
       <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle color theme"></button>
     </div>
   </div>
@@ -246,7 +245,7 @@
     <div class="wizard">
       <div class="wizard-progress" aria-live="polite">
         <div class="wizard-progress-row">
-          <span id="step-count" class="step-count">Step 1 of 9</span>
+          <span id="step-count" class="step-count">Step 1 of 10</span>
           <span id="step-title" class="step-title">Document</span>
         </div>
         <div class="progress-track" aria-hidden="true"><div id="progress-fill" class="progress-fill"></div></div>
@@ -262,7 +261,7 @@
         <button class="step-tab" type="button" data-step-target="6">Letterhead</button>
         <button class="step-tab" type="button" data-step-target="7">Headers</button>
         <button class="step-tab" type="button" data-step-target="8">Style</button>
-        <button id="render-button" type="submit" aria-describedby="compile-status" disabled>Compile PDF</button>
+        <button class="step-tab" type="button" data-step-target="9">Validate document</button>
       </nav>
 
       <fieldset class="wizard-page" data-step-title="Document">
@@ -281,7 +280,6 @@
           </label>
 
         </div>
-        <p id="compile-status" role="status" aria-live="polite">Add a document, adjust settings, then click Compile PDF.</p>
       </fieldset>
 
     <fieldset class="wizard-page" data-step-title="Typography">
@@ -487,7 +485,12 @@
         </div>
       </fieldset>
 
-      <div id="validation-result" class="validation" role="status" aria-live="polite"></div>
+      <fieldset class="wizard-page" data-step-title="Validate document">
+        <legend>Validate document</legend>
+        <p>Check your document for legal-style and URL issues before compiling. Validation is optional.</p>
+        <button id="validate-button" class="secondary" type="button">Validate document</button>
+        <div id="validation-result" class="validation" role="status" aria-live="polite"></div>
+      </fieldset>
 
       <div class="wizard-actions">
         <button id="back-button" class="secondary" type="button">Back</button>
@@ -495,6 +498,10 @@
           <button id="next-button" class="next-action" type="button">Next</button>
         </div>
       </div>
+    </div>
+    <div class="compile-actions">
+      <button id="render-button" type="submit" aria-describedby="compile-status" disabled>Compile PDF</button>
+      <p id="compile-status" role="status" aria-live="polite">Add a document, adjust settings, then click Compile PDF.</p>
     </div>
   </form>
 </main>
@@ -675,7 +682,7 @@
     nextButton.hidden = finalStep;
 
     if (focus) {
-      wizardPages[currentStep].querySelector('input, select, textarea')?.focus({ preventScroll: true });
+      wizardPages[currentStep].querySelector('input, select, textarea, button')?.focus({ preventScroll: true });
     }
   }
 
