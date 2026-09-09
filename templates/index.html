@@ -146,6 +146,10 @@
     small { color: var(--subtle); font-weight: 400; line-height: 1.4; }
     .check { display: flex; align-items: center; gap: 8px; font-weight: 600; }
     .check input { width: auto; }
+    .link-colors { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .link-colors .color-swatch { width: 28px; height: 28px; padding: 0; border-radius: 50%; border: 2px solid var(--border); background: var(--swatch); }
+    .color-swatch[aria-pressed="true"] { outline: 2px solid var(--text); outline-offset: 3px; }
+    .link-colors input { width: 120px; }
     .addressee-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
     .addressee-actions button { margin-left: auto; }
     .preview { display: none; max-width: 210px; max-height: 80px; object-fit: contain; border: 1px dashed var(--control-border); border-radius: 8px; padding: 6px; background: var(--surface-subtle); }
@@ -265,7 +269,18 @@
           </label>
           <label class="check"><input type="checkbox" name="smart_quotes"> Use smart quotes in rendered PDF</label>
           <label class="check"><input type="checkbox" name="underline_links" checked> Underline links (recommended for web)</label>
-
+          <div class="full">
+            <label for="link-color">URL accent color</label>
+            <div class="link-colors" role="group" aria-label="URL accent color">
+              <button type="button" class="color-swatch" data-color="#2E732E" style="--swatch: #2E732E" aria-label="Green (default)" aria-pressed="true"></button>
+              <button type="button" class="color-swatch" data-color="#43AF49" style="--swatch: #43AF49" aria-label="Bright green" aria-pressed="false"></button>
+              <button type="button" class="color-swatch" data-color="#2563EB" style="--swatch: #2563EB" aria-label="Blue" aria-pressed="false"></button>
+              <button type="button" class="color-swatch" data-color="#7C3AED" style="--swatch: #7C3AED" aria-label="Purple" aria-pressed="false"></button>
+              <button type="button" class="color-swatch" data-color="#B45309" style="--swatch: #B45309" aria-label="Amber" aria-pressed="false"></button>
+              <button type="button" class="color-swatch" data-color="#222222" style="--swatch: #222222" aria-label="Charcoal" aria-pressed="false"></button>
+              <input id="link-color" name="link_color" value="#2E732E" pattern="#[0-9a-fA-F]{6}" maxlength="7" required aria-label="Custom hex color" title="Enter a six-digit hex color, such as #2E732E" spellcheck="false">
+            </div>
+          </div>
         </div>
       </fieldset>
 
@@ -509,6 +524,16 @@
   });
 
   const form = document.getElementById('compiler-form');
+  const linkColor = document.getElementById('link-color');
+  const colorSwatches = [...document.querySelectorAll('.color-swatch')];
+  function updateColorSwatches() {
+    colorSwatches.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.color === linkColor.value.toUpperCase())));
+  }
+  colorSwatches.forEach(button => button.addEventListener('click', () => {
+    linkColor.value = button.dataset.color;
+    updateColorSwatches();
+  }));
+  linkColor.addEventListener('input', updateColorSwatches);
   document.getElementById('fill-countryman').addEventListener('click', () => {
     const addressee = form.elements.namedItem('addressee');
     addressee.value = addressee.placeholder;

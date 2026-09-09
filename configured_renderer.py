@@ -26,7 +26,7 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-from pdf_compiler import LINK_COLOR, PdfRenderer, RefParagraph, TrackingDoc, alpha, roman
+from pdf_compiler import PdfRenderer, RefParagraph, TrackingDoc, alpha, roman
 from emoji_renderer import EmojiParagraph as Paragraph
 
 
@@ -518,7 +518,7 @@ class ConfiguredPdfRenderer(PdfRenderer):
             label, _ = self.markdown_inline(match.group(1), False)
             if self.underline_links:
                 label = f"<u>{label}</u>"
-            chunks.extend((prefix, f'<a href="{escape(match.group(2), quote=True)}" color="{LINK_COLOR}">{label}</a>'))
+            chunks.extend((prefix, f'<a href="{escape(match.group(2), quote=True)}" color="{self.link_color}">{label}</a>'))
             start = match.end()
         suffix, _ = self.markdown_inline(text[start:], False)
         chunks.append(suffix)

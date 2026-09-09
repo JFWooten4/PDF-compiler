@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date
 from io import BytesIO
 from pathlib import Path
+import re
 from tempfile import TemporaryDirectory
 
 from flask import Flask, jsonify, render_template, request, send_file
@@ -18,6 +19,7 @@ from configured_renderer import (
     LetterSettings,
 )
 from first_page_layout import FirstPagePdfRenderer
+from pdf_compiler import LINK_COLOR
 from legal_style_validator import validate_legal_style
 from typography_renderer import TypographySettings
 from url_validator import validate_urls
@@ -115,6 +117,9 @@ def render_pdf():
             signature_upload.save(signature)
 
         try:
+            link_color = request.form.get("link_color", LINK_COLOR).strip()
+            if not re.fullmatch(r"#[0-9a-fA-F]{6}", link_color):
+                raise ValueError("Link color must be a six-digit hex color, such as #2E732E.")
             settings = LetterSettings(
                 show_date=truthy("show_date"),
                 date_format=request.form.get("date_format", "month_day_year"),
@@ -165,6 +170,7 @@ def render_pdf():
             keywords=request.form.get("keywords", "").strip() or None,
             smart_quotes=truthy("smart_quotes"),
             underline_links=truthy("underline_links"),
+            link_color=link_color,
         )
         renderer.build()
         payload = BytesIO(output.read_bytes())
