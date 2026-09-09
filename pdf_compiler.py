@@ -388,9 +388,9 @@ class PdfRenderer:
                 "QuoteX",
                 parent=styles["BodyX"],
                 leftIndent=0.25 * inch,
-                rightIndent=0.18 * inch + 8,
+                rightIndent=0.18 * inch + 10,
                 quoteAccent=colors.HexColor(self.link_color),
-                quoteCornerRadius=8,
+                quoteCornerRadius=10,
                 spaceBefore=18,
                 spaceAfter=20,
             )

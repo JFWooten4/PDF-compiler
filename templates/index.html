@@ -470,8 +470,12 @@
       <fieldset class="wizard-page" data-step-title="Style">
         <legend>Style</legend>
         <div class="grid">
-          <label class="full">Blockquote corner radius (pt)
-            <input type="number" name="blockquote_corner_radius" value="8" min="0" max="64" step="1" required>
+          <label>Blockquote color
+            <input name="blockquote_color" value="" placeholder="Same as URL accent color" pattern="#[0-9a-fA-F]{6}" maxlength="7" title="Enter a six-digit hex color, such as #2E732E, or leave blank to use the URL accent color" spellcheck="false">
+            <small>Leave blank to match links, or enter a hex color for the left rule and its 20% background tint.</small>
+          </label>
+          <label>Blockquote corner radius (pt)
+            <input type="number" name="blockquote_corner_radius" value="10" min="0" max="64" step="1" required>
             <small>Rounds the right corners. Use 0 for square corners; short quotes limit the radius to half their height.</small>
           </label>
           <label class="check"><input type="checkbox" name="smart_quotes"> Use smart quotes in rendered PDF</label>

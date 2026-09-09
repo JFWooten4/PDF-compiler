@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
@@ -31,7 +32,8 @@ class TypographySettings:
     subtitle_font_size: float = 9.5
     header_font_size: float = 9.5
     page_number_font_size: float = 8.5
-    blockquote_corner_radius: float = 8.0
+    blockquote_corner_radius: float = 10.0
+    blockquote_color: str = ""
 
     def __post_init__(self) -> None:
         font_sizes = {
@@ -56,6 +58,8 @@ class TypographySettings:
             raise ValueError("Body line spacing must be between 1.0 and 3.0.")
         if not 0 <= self.blockquote_corner_radius <= 64:
             raise ValueError("Blockquote corner radius must be between 0 and 64 pt.")
+        if self.blockquote_color and not re.fullmatch(r"#[0-9a-fA-F]{6}", self.blockquote_color):
+            raise ValueError("Blockquote color must be a six-digit hex color, such as #2E732E.")
 
 
 class TypographyPdfRenderer(ConfiguredPdfRenderer):
@@ -91,6 +95,7 @@ class TypographyPdfRenderer(ConfiguredPdfRenderer):
         styles["FootX"].fontSize = typography.footnote_font_size
         styles["FootX"].leading = self._scaled_leading(typography.footnote_font_size, 8.8, 9.9)
         styles["QuoteX"].quoteCornerRadius = typography.blockquote_corner_radius
+        styles["QuoteX"].quoteAccent = colors.HexColor(typography.blockquote_color or self.link_color)
         styles["QuoteX"].rightIndent = 0.18 * inch + typography.blockquote_corner_radius
         return styles
 

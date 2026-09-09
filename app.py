@@ -160,7 +160,8 @@ def render_pdf():
             typography = TypographySettings(
                 body_font_size=form_float("body_font_size", 12.0),
                 line_spacing=form_float("line_spacing", 1.3),
-                blockquote_corner_radius=form_float("blockquote_corner_radius", 8.0),
+                blockquote_corner_radius=form_float("blockquote_corner_radius", 10.0),
+                blockquote_color=request.form.get("blockquote_color", "").strip(),
                 h1_font_size=form_float("h1_font_size", 16.5),
                 h2_font_size=form_float("h2_font_size", 13.7),
                 h3_font_size=form_float("h3_font_size", 12.2),
