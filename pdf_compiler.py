@@ -27,13 +27,16 @@ from reportlab.platypus import (
     HRFlowable,
     Image,
     PageBreak,
-    Paragraph,
     SimpleDocTemplate,
     Spacer,
 )
 
 
+from emoji_renderer import EmojiParagraph as Paragraph
+
+
 SIGNATURE_SENTINEL = "@@PDF_COMPILER_SIGNATURE_BLOCK@@"
+LINK_COLOR = "#2E732E"
 
 
 class RefParagraph(Paragraph):
@@ -422,7 +425,7 @@ class PdfRenderer:
                 return match.group(0)
 
             href = html.escape(html.unescape(url), quote=True)
-            return f'<link href="{href}">{url}</link>{trailing}'
+            return f'<link href="{href}" color="{LINK_COLOR}">{url}</link>{trailing}'
 
         parts = re.split(r"(<[^>]+>)", text)
         return "".join(

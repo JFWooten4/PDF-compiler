@@ -21,13 +21,13 @@ from reportlab.platypus import (
     Image,
     KeepInFrame,
     PageBreak,
-    Paragraph,
     Spacer,
     Table,
     TableStyle,
 )
 
-from pdf_compiler import PdfRenderer, RefParagraph, TrackingDoc, alpha, roman
+from pdf_compiler import LINK_COLOR, PdfRenderer, RefParagraph, TrackingDoc, alpha, roman
+from emoji_renderer import EmojiParagraph as Paragraph
 
 
 DATE_FORMATS = {
@@ -353,8 +353,8 @@ class ConfiguredPdfRenderer(PdfRenderer):
         rendered_label = re.sub(r"</?link\b[^>]*>", "", rendered_label)
         target = f"#section-{index}"
         return [
-            Paragraph(f'<link href="{target}">{rendered_label}</link>', label_style),
-            Paragraph(f'<link href="{target}">{page}</link>', page_style),
+            Paragraph(f'<link href="{target}" color="{LINK_COLOR}">{rendered_label}</link>', label_style),
+            Paragraph(f'<link href="{target}" color="{LINK_COLOR}">{page}</link>', page_style),
         ]
 
     def build_story(self, extra_pages: int = 0, toc_page_numbers: list[int] | None = None):
@@ -516,7 +516,7 @@ class ConfiguredPdfRenderer(PdfRenderer):
         for match in self.url_re.finditer(text):
             prefix, _ = self.markdown_inline(text[start:match.start()], False)
             label, _ = self.markdown_inline(match.group(1), False)
-            chunks.extend((prefix, f'<a href="{escape(match.group(2), quote=True)}">{label}</a>'))
+            chunks.extend((prefix, f'<a href="{escape(match.group(2), quote=True)}" color="{LINK_COLOR}">{label}</a>'))
             start = match.end()
         suffix, _ = self.markdown_inline(text[start:], False)
         chunks.append(suffix)
@@ -593,16 +593,8 @@ class ConfiguredPdfRenderer(PdfRenderer):
             return
         canvas.saveState()
         canvas.setFillColor(colors.HexColor("#374151"))
-        canvas.setStrokeColor(colors.HexColor("#9AA3AE"))
         self._draw_header_text(
             canvas, doc, text, self.page_height - 0.55 * inch, colors.HexColor("#374151"),
-        )
-        canvas.setLineWidth(0.5)
-        canvas.line(
-            doc.leftMargin,
-            self.page_height - 0.73 * inch,
-            self.page_width - doc.rightMargin,
-            self.page_height - 0.73 * inch,
         )
         canvas.restoreState()
 

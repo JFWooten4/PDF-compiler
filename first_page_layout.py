@@ -5,7 +5,7 @@ from __future__ import annotations
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.platypus import Paragraph
+from emoji_renderer import EmojiParagraph as Paragraph
 
 from configured_renderer import format_header_date
 from typography_renderer import TypographyPdfRenderer
