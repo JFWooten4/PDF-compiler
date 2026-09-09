@@ -8,6 +8,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from flask import Flask, jsonify, render_template, request, send_file
+import pymupdf
 from werkzeug.utils import secure_filename
 
 from configured_renderer import (
@@ -26,7 +27,7 @@ app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024
 
 LETTERHEAD_PRESETS = {
-    "whydrs": Path(app.root_path) / "static" / "letterheads" / "whydrs-logo.png",
+    "whydrs": Path(app.root_path) / "static" / "letterheads" / "whydrs-logo.svg",
 }
 
 
@@ -123,6 +124,10 @@ def render_pdf():
             logo = LETTERHEAD_PRESETS[preset]
             if not logo.exists():
                 return jsonify({"error": f"Letterhead preset asset is missing: {preset}"}), 500
+            # Render the bundled SVG for the image pipeline; no raster asset is required.
+            with pymupdf.open(logo) as artwork:
+                logo = root / "preset-logo.png"
+                artwork[0].get_pixmap(matrix=pymupdf.Matrix(2, 2), alpha=True).save(logo)
 
         signature = None
         signature_upload = request.files.get("signature")
