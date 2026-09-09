@@ -60,15 +60,26 @@ class RefParagraph(Paragraph):
             x = self.style.leftIndent - 10
             padding = 6
             tint = colors.Color(
-                1 - (1 - accent.red) * 0.05,
-                1 - (1 - accent.green) * 0.05,
-                1 - (1 - accent.blue) * 0.05,
+                1 - (1 - accent.red) * 0.20,
+                1 - (1 - accent.green) * 0.20,
+                1 - (1 - accent.blue) * 0.20,
             )
             self.canv.setFillColor(tint)
-            self.canv.rect(
-                x, -padding, self.width - self.style.rightIndent - x,
-                self.height + 2 * padding, stroke=0, fill=1,
-            )
+            right = self.width - self.style.rightIndent + 8
+            bottom, top = -padding, self.height + padding
+            radius = min(8, (top - bottom) / 2, (right - x) / 2)
+            curve = radius * 0.5522847498
+            background = self.canv.beginPath()
+            background.moveTo(x, bottom)
+            background.lineTo(right - radius, bottom)
+            background.curveTo(right - radius + curve, bottom,
+                               right, bottom + radius - curve, right, bottom + radius)
+            background.lineTo(right, top - radius)
+            background.curveTo(right, top - radius + curve,
+                               right - radius + curve, top, right - radius, top)
+            background.lineTo(x, top)
+            background.close()
+            self.canv.drawPath(background, stroke=0, fill=1)
             self.canv.setStrokeColor(accent)
             self.canv.setLineWidth(2)
             self.canv.line(x, -padding, x, self.height + padding)
@@ -376,7 +387,7 @@ class PdfRenderer:
                 "QuoteX",
                 parent=styles["BodyX"],
                 leftIndent=0.25 * inch,
-                rightIndent=0.18 * inch,
+                rightIndent=0.18 * inch + 8,
                 quoteAccent=colors.HexColor(self.link_color),
                 spaceBefore=18,
                 spaceAfter=20,
