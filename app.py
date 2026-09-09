@@ -164,6 +164,7 @@ def render_pdf():
             subject=request.form.get("subject", "").strip() or None,
             keywords=request.form.get("keywords", "").strip() or None,
             smart_quotes=truthy("smart_quotes"),
+            underline_links=truthy("underline_links"),
         )
         renderer.build()
         payload = BytesIO(output.read_bytes())

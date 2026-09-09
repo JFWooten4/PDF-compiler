@@ -219,6 +219,7 @@ class PdfRenderer:
         author: str | None = None,
         start_heading: str | None = None,
         smart_quotes: bool = False,
+        underline_links: bool = True,
     ):
         self.source = source
         self.output = output
@@ -228,6 +229,7 @@ class PdfRenderer:
         self.title = title or source.stem
         self.author = author or ""
         self.smart_quotes = smart_quotes
+        self.underline_links = underline_links
         self.order: list[str] = []
         self.nums: dict[str, int] = {}
         self._signature_asset: Path | None = None
@@ -402,7 +404,7 @@ class PdfRenderer:
         return self.note_number_ref_re.sub(replace, text)
 
     @classmethod
-    def linkify_urls(cls, text: str) -> str:
+    def linkify_urls(cls, text: str, *, underline: bool = True) -> str:
         """Wrap bare HTTP(S) URLs in ReportLab link markup."""
 
         def replace(match: re.Match[str]) -> str:
@@ -425,7 +427,8 @@ class PdfRenderer:
                 return match.group(0)
 
             href = html.escape(html.unescape(url), quote=True)
-            return f'<link href="{href}" color="{LINK_COLOR}">{url}</link>{trailing}'
+            label = f"<u>{url}</u>" if underline else url
+            return f'<link href="{href}" color="{LINK_COLOR}">{label}</link>{trailing}'
 
         parts = re.split(r"(<[^>]+>)", text)
         return "".join(
@@ -458,7 +461,7 @@ class PdfRenderer:
         text = re.sub(r"(?<![\w/])_([^_\n]+)_(?![\w/])", r"<i>\1</i>", text)
         text = re.sub(r"`([^`]+)`", r"\1", text)
         text = re.sub(r"@@FN(\d+)@@", r"<super>\1</super>", text)
-        text = self.linkify_urls(text)
+        text = self.linkify_urls(text, underline=self.underline_links)
         return text, refs
 
     def paragraph(self, text: str, style: ParagraphStyle) -> RefParagraph:

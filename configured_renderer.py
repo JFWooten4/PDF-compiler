@@ -350,7 +350,7 @@ class ConfiguredPdfRenderer(PdfRenderer):
     @staticmethod
     def _toc_link_row(index, rendered_label, page, label_style, page_style):
         # The whole entry navigates internally, including titles containing URLs.
-        rendered_label = re.sub(r"</?link\b[^>]*>", "", rendered_label)
+        rendered_label = re.sub(r"</?(?:link|u)\b[^>]*>", "", rendered_label)
         target = f"#section-{index}"
         return [
             Paragraph(f'<link href="{target}">{rendered_label}</link>', label_style),
@@ -516,6 +516,8 @@ class ConfiguredPdfRenderer(PdfRenderer):
         for match in self.url_re.finditer(text):
             prefix, _ = self.markdown_inline(text[start:match.start()], False)
             label, _ = self.markdown_inline(match.group(1), False)
+            if self.underline_links:
+                label = f"<u>{label}</u>"
             chunks.extend((prefix, f'<a href="{escape(match.group(2), quote=True)}" color="{LINK_COLOR}">{label}</a>'))
             start = match.end()
         suffix, _ = self.markdown_inline(text[start:], False)
