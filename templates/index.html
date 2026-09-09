@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PDF Compiler</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
   <script>
     (() => {
       document.documentElement.classList.add('js');
@@ -60,6 +61,9 @@
     main { max-width: 860px; margin: 0 auto; padding: 24px 18px 48px; }
     .topbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; margin-bottom: 16px; }
     .topbar .action-group { margin-left: auto; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-logo { display: block; width: 48px; height: 48px; flex: 0 0 auto; border-radius: 12px; }
+    :root[data-theme="dark"] .brand-logo { outline: 1px solid var(--control-border); }
     h1 { margin: 0 0 3px; font-size: 26px; letter-spacing: -.02em; }
     .intro { margin: 0; color: var(--muted); font-size: 14px; }
     form { margin: 0; }
@@ -232,9 +236,12 @@
 <body>
 <main>
   <div class="topbar">
-    <div>
-      <h1>PDF Compiler</h1>
-      <p class="intro">Configure one section at a time, then validate or render your PDF.</p>
+    <div class="brand">
+      <img class="brand-logo" src="{{ url_for('static', filename='logo.svg') }}" width="48" height="48" alt="">
+      <div>
+        <h1>PDF Compiler</h1>
+        <p class="intro">Configure one section at a time, then validate or render your PDF.</p>
+      </div>
     </div>
     <div class="action-group">
       <button id="validate-button" class="secondary" type="button">Validate document</button>
