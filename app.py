@@ -25,6 +25,10 @@ from url_validator import validate_urls
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024
 
+LETTERHEAD_PRESETS = {
+    "whydrs": Path(app.root_path) / "static" / "letterheads" / "whydrs-logo.png",
+}
+
 
 def truthy(name: str) -> bool:
     return request.form.get(name) in {"1", "true", "on", "yes"}
@@ -63,13 +67,18 @@ def preflight_issues(markdown: str) -> list[dict[str, object]]:
 
 @app.get("/")
 def index():
-    return render_template(
+    page = render_template(
         "index.html",
         date_formats=DATE_FORMATS,
         image_treatments=IMAGE_TREATMENTS,
         page_number_styles=PAGE_NUMBER_STYLES,
         section_numbering_styles=SECTION_NUMBERING_STYLES,
         today=date.today().isoformat(),
+    )
+    return page.replace(
+        "</body>",
+        '  <script src="/static/letterhead-presets.js"></script>\n</body>',
+        1,
     )
 
 
@@ -89,6 +98,10 @@ def render_pdf():
     if error:
         return jsonify({"error": error}), 400
 
+    preset = request.form.get("letterhead_preset", "").strip()
+    if preset and preset not in LETTERHEAD_PRESETS:
+        return jsonify({"error": f"Unknown letterhead preset: {preset}"}), 400
+
     source_upload = request.files.get("source")
     with TemporaryDirectory(prefix="pdf-compiler-") as temp:
         root = Path(temp)
@@ -106,6 +119,10 @@ def render_pdf():
             logo_name = secure_filename(logo_upload.filename) or "logo.png"
             logo = root / logo_name
             logo_upload.save(logo)
+        elif preset:
+            logo = LETTERHEAD_PRESETS[preset]
+            if not logo.exists():
+                return jsonify({"error": f"Letterhead preset asset is missing: {preset}"}), 500
 
         signature = None
         signature_upload = request.files.get("signature")
