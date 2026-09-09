@@ -148,6 +148,8 @@
     small { color: var(--subtle); font-weight: 400; line-height: 1.4; }
     .check { display: flex; align-items: center; gap: 8px; font-weight: 600; }
     .check input { width: auto; }
+    .link-color-setting { margin-top: 12px; }
+    .link-color-setting > label { margin-bottom: 10px; }
     .link-colors { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
     .link-colors .color-swatch { width: 28px; height: 28px; padding: 0; border-radius: 50%; border: 2px solid var(--border); background: var(--swatch); }
     .color-swatch[aria-pressed="true"] { outline: 2px solid var(--text); outline-offset: 3px; }
@@ -187,7 +189,7 @@
     button:disabled { cursor: default; opacity: .45; }
     #render-button { flex: 0 0 auto; margin-left: auto; background: #B42318; color: white; opacity: 1; }
     #render-button.ready { background: #2E732E; }
-    #compile-status { margin: 12px 18px; color: var(--muted); font-size: 13px; }
+    #compile-status { margin: 12px 0 0; color: var(--muted); font-size: 13px; }
     .secondary { border-color: var(--border); background: var(--surface); color: var(--text); }
     .theme-toggle { flex: 0 0 auto; padding: 8px 10px; border-color: var(--border); background: var(--surface); color: var(--text); box-shadow: 0 3px 10px var(--shadow); }
     .next-action[hidden] { display: none; }
@@ -262,7 +264,6 @@
         <button class="step-tab" type="button" data-step-target="8">Style</button>
         <button id="render-button" type="submit" aria-describedby="compile-status" disabled>Compile PDF</button>
       </nav>
-      <p id="compile-status" role="status" aria-live="polite">Add a document to prepare compilation.</p>
 
       <fieldset class="wizard-page" data-step-title="Document">
         <legend>Document</legend>
@@ -280,6 +281,7 @@
           </label>
 
         </div>
+        <p id="compile-status" role="status" aria-live="polite">Add a document to prepare compilation.</p>
       </fieldset>
 
     <fieldset class="wizard-page" data-step-title="Typography">
@@ -470,7 +472,7 @@
         <div class="grid">
           <label class="check"><input type="checkbox" name="smart_quotes"> Use smart quotes in rendered PDF</label>
           <label class="check"><input type="checkbox" name="underline_links" checked> Underline links (recommended for web)</label>
-          <div class="full">
+          <div class="full link-color-setting">
             <label for="link-color">URL accent color</label>
             <div class="link-colors" role="group" aria-label="URL accent color">
               <button type="button" class="color-swatch" data-color="#2E732E" style="--swatch: #2E732E" aria-label="Green (default)" aria-pressed="true"></button>
