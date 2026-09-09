@@ -80,7 +80,7 @@
     .step-count { color: var(--muted); font-size: 12px; font-weight: 750; text-transform: uppercase; letter-spacing: .08em; }
     .step-title { color: var(--text); font-size: 13px; font-weight: 700; }
     .progress-track { height: 3px; overflow: hidden; border-radius: 999px; background: var(--border); }
-    .progress-fill { width: 12.5%; height: 100%; border-radius: inherit; background: var(--progress); transition: width .18s ease; }
+    .progress-fill { width: 11.111%; height: 100%; border-radius: inherit; background: var(--progress); transition: width .18s ease; }
     .step-tabs {
       display: flex;
       gap: 5px;
@@ -183,6 +183,9 @@
     }
     button:hover { opacity: .9; }
     button:disabled { cursor: default; opacity: .45; }
+    #render-button { background: #B42318; color: white; opacity: 1; }
+    #render-button.ready { background: #2E732E; }
+    #compile-status { color: var(--muted); font-size: 13px; }
     .secondary { border-color: var(--border); background: var(--surface); color: var(--text); }
     .theme-toggle { flex: 0 0 auto; padding: 8px 10px; border-color: var(--border); background: var(--surface); color: var(--text); box-shadow: 0 3px 10px var(--shadow); }
     .final-action[hidden], .next-action[hidden] { display: none; }
@@ -236,7 +239,7 @@
     <div class="wizard">
       <div class="wizard-progress" aria-live="polite">
         <div class="wizard-progress-row">
-          <span id="step-count" class="step-count">Step 1 of 8</span>
+          <span id="step-count" class="step-count">Step 1 of 9</span>
           <span id="step-title" class="step-title">Document</span>
         </div>
         <div class="progress-track" aria-hidden="true"><div id="progress-fill" class="progress-fill"></div></div>
@@ -251,6 +254,7 @@
         <button class="step-tab" type="button" data-step-target="5">Signature</button>
         <button class="step-tab" type="button" data-step-target="6">Letterhead</button>
         <button class="step-tab" type="button" data-step-target="7">Headers</button>
+        <button class="step-tab" type="button" data-step-target="8">Style</button>
       </nav>
 
       <fieldset class="wizard-page" data-step-title="Document">
@@ -267,20 +271,7 @@
             <small><code># Title</code> · <code>## Subtitle or section heading</code></small>
             <textarea id="markdown" name="markdown" placeholder="# Title&#10;&#10;## Subtitle or section heading&#10;&#10;Your document…"></textarea>
           </label>
-          <label class="check"><input type="checkbox" name="smart_quotes"> Use smart quotes in rendered PDF</label>
-          <label class="check"><input type="checkbox" name="underline_links" checked> Underline links (recommended for web)</label>
-          <div class="full">
-            <label for="link-color">URL accent color</label>
-            <div class="link-colors" role="group" aria-label="URL accent color">
-              <button type="button" class="color-swatch" data-color="#2E732E" style="--swatch: #2E732E" aria-label="Green (default)" aria-pressed="true"></button>
-              <button type="button" class="color-swatch" data-color="#43AF49" style="--swatch: #43AF49" aria-label="Bright green" aria-pressed="false"></button>
-              <button type="button" class="color-swatch" data-color="#2563EB" style="--swatch: #2563EB" aria-label="Blue" aria-pressed="false"></button>
-              <button type="button" class="color-swatch" data-color="#7C3AED" style="--swatch: #7C3AED" aria-label="Purple" aria-pressed="false"></button>
-              <button type="button" class="color-swatch" data-color="#B45309" style="--swatch: #B45309" aria-label="Amber" aria-pressed="false"></button>
-              <button type="button" class="color-swatch" data-color="#222222" style="--swatch: #222222" aria-label="Charcoal" aria-pressed="false"></button>
-              <input id="link-color" name="link_color" value="#2E732E" pattern="#[0-9a-fA-F]{6}" maxlength="7" required aria-label="Custom hex color" title="Enter a six-digit hex color, such as #2E732E" spellcheck="false">
-            </div>
-          </div>
+
         </div>
       </fieldset>
 
@@ -467,6 +458,27 @@
         </div>
       </fieldset>
 
+      <fieldset class="wizard-page" data-step-title="Style">
+        <legend>Style</legend>
+        <div class="grid">
+          <label class="check"><input type="checkbox" name="smart_quotes"> Use smart quotes in rendered PDF</label>
+          <label class="check"><input type="checkbox" name="underline_links" checked> Underline links (recommended for web)</label>
+          <div class="full">
+            <label for="link-color">URL accent color</label>
+            <div class="link-colors" role="group" aria-label="URL accent color">
+              <button type="button" class="color-swatch" data-color="#2E732E" style="--swatch: #2E732E" aria-label="Green (default)" aria-pressed="true"></button>
+              <button type="button" class="color-swatch" data-color="#43AF49" style="--swatch: #43AF49" aria-label="Bright green" aria-pressed="false"></button>
+              <button type="button" class="color-swatch" data-color="#2563EB" style="--swatch: #2563EB" aria-label="Blue" aria-pressed="false"></button>
+              <button type="button" class="color-swatch" data-color="#7C3AED" style="--swatch: #7C3AED" aria-label="Purple" aria-pressed="false"></button>
+              <button type="button" class="color-swatch" data-color="#B45309" style="--swatch: #B45309" aria-label="Amber" aria-pressed="false"></button>
+              <button type="button" class="color-swatch" data-color="#222222" style="--swatch: #222222" aria-label="Charcoal" aria-pressed="false"></button>
+              <input id="link-color" name="link_color" value="#2E732E" pattern="#[0-9a-fA-F]{6}" maxlength="7" required aria-label="Custom hex color" title="Enter a six-digit hex color, such as #2E732E" spellcheck="false">
+            </div>
+          </div>
+        </div>
+        <p id="compile-status" role="status" aria-live="polite">Add a document to prepare compilation.</p>
+      </fieldset>
+
       <div id="validation-result" class="validation" role="status" aria-live="polite"></div>
 
       <div class="wizard-actions">
@@ -474,7 +486,7 @@
         <div class="action-group">
           <button id="validate-button" class="secondary final-action" type="button" hidden>Validate document</button>
           <button id="next-button" class="next-action" type="button">Next</button>
-          <button id="render-button" class="final-action" type="submit" hidden>Render PDF</button>
+          <button id="render-button" class="final-action" type="submit" aria-describedby="compile-status" disabled hidden>Compile PDF</button>
         </div>
       </div>
     </div>
@@ -532,6 +544,7 @@
   colorSwatches.forEach(button => button.addEventListener('click', () => {
     linkColor.value = button.dataset.color;
     updateColorSwatches();
+    linkColor.dispatchEvent(new Event('input', { bubbles: true }));
   }));
   linkColor.addEventListener('input', updateColorSwatches);
   document.getElementById('fill-countryman').addEventListener('click', () => {
@@ -551,6 +564,70 @@
   const nextButton = document.getElementById('next-button');
   const renderButton = document.getElementById('render-button');
   let currentStep = 0;
+  const compileStatus = document.getElementById('compile-status');
+  let preparedPdf = null;
+  let compileVersion = 0;
+  let compileTimer;
+  let compileRequest;
+
+  function invalidateCompilation() {
+    compileVersion += 1;
+    clearTimeout(compileTimer);
+    compileRequest?.abort();
+    if (preparedPdf) URL.revokeObjectURL(preparedPdf);
+    preparedPdf = null;
+    renderButton.disabled = true;
+    renderButton.classList.remove('ready');
+    compileStatus.textContent = 'Document changed. Preparing compilation…';
+    if (currentStep === wizardPages.length - 1) {
+      compileTimer = setTimeout(prepareCompilation, 400);
+    }
+  }
+
+  async function prepareCompilation() {
+    if (preparedPdf) return;
+    const hasSource = form.elements.source.files.length || form.elements.markdown.value.trim();
+    if (!hasSource) {
+      compileStatus.textContent = 'Upload a Markdown file or paste text in Document.';
+      return;
+    }
+    const invalid = [...form.elements].find(control => control.willValidate && !control.validity.valid);
+    if (invalid) {
+      compileStatus.textContent = `Check ${invalid.closest('label')?.firstChild.textContent.trim() || invalid.getAttribute('aria-label') || invalid.name} before compiling.`;
+      return;
+    }
+    const version = compileVersion;
+    compileRequest?.abort();
+    const request = new AbortController();
+    compileRequest = request;
+    compileStatus.textContent = 'Checking that your document compiles…';
+    try {
+      const response = await fetch('/render', { method: 'POST', body: new FormData(form), signal: request.signal });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Compilation failed. Check your document and settings.');
+      }
+      if (!response.headers.get('content-type')?.includes('application/pdf')) {
+        throw new Error('The server did not return a PDF. Please try again.');
+      }
+      const pdf = await response.blob();
+      if (version !== compileVersion || request.signal.aborted) return;
+      preparedPdf = URL.createObjectURL(pdf);
+      renderButton.disabled = false;
+      renderButton.classList.add('ready');
+      compileStatus.textContent = 'Ready to compile with these settings.';
+    } catch (error) {
+      if (version !== compileVersion || request.signal.aborted) return;
+      compileStatus.textContent = error.message;
+    }
+  }
+
+  form.addEventListener('input', invalidateCompilation);
+  form.addEventListener('change', invalidateCompilation);
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    if (preparedPdf) window.open(preparedPdf, '_blank', 'noopener');
+  });
 
   function showStep(index, { focus = true } = {}) {
     currentStep = Math.max(0, Math.min(index, wizardPages.length - 1));
@@ -577,6 +654,7 @@
     nextButton.hidden = finalStep;
     validateButton.hidden = !finalStep;
     renderButton.hidden = !finalStep;
+    if (finalStep) prepareCompilation();
 
     if (focus) {
       wizardPages[currentStep].querySelector('input, select, textarea')?.focus({ preventScroll: true });
