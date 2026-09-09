@@ -281,7 +281,7 @@
           </label>
 
         </div>
-        <p id="compile-status" role="status" aria-live="polite">Add a document to prepare compilation.</p>
+        <p id="compile-status" role="status" aria-live="polite">Add a document, adjust settings, then click Compile PDF.</p>
       </fieldset>
 
     <fieldset class="wizard-page" data-step-title="Typography">
@@ -573,25 +573,27 @@
   const compileStatus = document.getElementById('compile-status');
   let preparedPdf = null;
   let compileVersion = 0;
-  let compileTimer;
   let compileRequest;
+
+  function hasDocument() {
+    return Boolean(form.elements.source.files.length || form.elements.markdown.value.trim());
+  }
 
   function invalidateCompilation() {
     compileVersion += 1;
-    clearTimeout(compileTimer);
     compileRequest?.abort();
     if (preparedPdf) URL.revokeObjectURL(preparedPdf);
     preparedPdf = null;
-    renderButton.disabled = true;
+    renderButton.disabled = !hasDocument();
     renderButton.classList.remove('ready');
-    compileStatus.textContent = 'Document changed. Preparing compilation…';
-    compileTimer = setTimeout(prepareCompilation, 400);
+    compileStatus.textContent = hasDocument()
+      ? 'Click Compile PDF to render with these settings.'
+      : 'Upload a Markdown file or paste text in Document.';
   }
 
   async function prepareCompilation() {
     if (preparedPdf) return;
-    const hasSource = form.elements.source.files.length || form.elements.markdown.value.trim();
-    if (!hasSource) {
+    if (!hasDocument()) {
       compileStatus.textContent = 'Upload a Markdown file or paste text in Document.';
       return;
     }
@@ -604,7 +606,8 @@
     compileRequest?.abort();
     const request = new AbortController();
     compileRequest = request;
-    compileStatus.textContent = 'Checking that your document compiles…';
+    renderButton.disabled = true;
+    compileStatus.textContent = 'Compiling PDF…';
     try {
       const response = await fetch('/render', { method: 'POST', body: new FormData(form), signal: request.signal });
       if (!response.ok) {
@@ -619,18 +622,32 @@
       preparedPdf = URL.createObjectURL(pdf);
       renderButton.disabled = false;
       renderButton.classList.add('ready');
-      compileStatus.textContent = 'Ready to compile with these settings.';
+      compileStatus.textContent = 'PDF compiled. Click Compile PDF to reopen it.';
     } catch (error) {
       if (version !== compileVersion || request.signal.aborted) return;
       compileStatus.textContent = error.message;
+    } finally {
+      if (version === compileVersion) renderButton.disabled = !hasDocument();
     }
   }
 
   form.addEventListener('input', invalidateCompilation);
   form.addEventListener('change', invalidateCompilation);
-  form.addEventListener('submit', event => {
+  form.addEventListener('submit', async event => {
     event.preventDefault();
-    if (preparedPdf) window.open(preparedPdf, '_blank', 'noopener');
+    if (preparedPdf) {
+      window.open(preparedPdf, '_blank', 'noopener');
+      return;
+    }
+    // Open during the click so the completed PDF is not blocked as a popup.
+    const preview = window.open('about:blank', '_blank');
+    if (preview) preview.opener = null;
+    await prepareCompilation();
+    if (preparedPdf) {
+      if (preview && !preview.closed) preview.location.replace(preparedPdf);
+    } else {
+      preview?.close();
+    }
   });
 
   function showStep(index, { focus = true } = {}) {
