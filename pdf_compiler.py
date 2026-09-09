@@ -57,10 +57,21 @@ class RefParagraph(Paragraph):
         accent = getattr(self.style, "quoteAccent", None)
         if accent is not None:
             self.canv.saveState()
+            x = self.style.leftIndent - 10
+            padding = 6
+            tint = colors.Color(
+                1 - (1 - accent.red) * 0.05,
+                1 - (1 - accent.green) * 0.05,
+                1 - (1 - accent.blue) * 0.05,
+            )
+            self.canv.setFillColor(tint)
+            self.canv.rect(
+                x, -padding, self.width - self.style.rightIndent - x,
+                self.height + 2 * padding, stroke=0, fill=1,
+            )
             self.canv.setStrokeColor(accent)
             self.canv.setLineWidth(2)
-            x = self.style.leftIndent - 10
-            self.canv.line(x, 0, x, self.height)
+            self.canv.line(x, -padding, x, self.height + padding)
             self.canv.restoreState()
         super().draw()
 
@@ -367,8 +378,8 @@ class PdfRenderer:
                 leftIndent=0.25 * inch,
                 rightIndent=0.18 * inch,
                 quoteAccent=colors.HexColor(self.link_color),
-                spaceBefore=10,
-                spaceAfter=12,
+                spaceBefore=18,
+                spaceAfter=20,
             )
         )
         styles.add(
