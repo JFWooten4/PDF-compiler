@@ -65,9 +65,10 @@ class RefParagraph(Paragraph):
                 1 - (1 - accent.blue) * 0.20,
             )
             self.canv.setFillColor(tint)
-            right = self.width - self.style.rightIndent + 8
+            corner_radius = self.style.quoteCornerRadius
+            right = self.width - self.style.rightIndent + corner_radius
             bottom, top = -padding, self.height + padding
-            radius = min(8, (top - bottom) / 2, (right - x) / 2)
+            radius = min(corner_radius, (top - bottom) / 2, (right - x) / 2)
             curve = radius * 0.5522847498
             background = self.canv.beginPath()
             background.moveTo(x, bottom)
@@ -389,6 +390,7 @@ class PdfRenderer:
                 leftIndent=0.25 * inch,
                 rightIndent=0.18 * inch + 8,
                 quoteAccent=colors.HexColor(self.link_color),
+                quoteCornerRadius=8,
                 spaceBefore=18,
                 spaceAfter=20,
             )

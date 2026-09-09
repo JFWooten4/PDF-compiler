@@ -470,6 +470,10 @@
       <fieldset class="wizard-page" data-step-title="Style">
         <legend>Style</legend>
         <div class="grid">
+          <label class="full">Blockquote corner radius (pt)
+            <input type="number" name="blockquote_corner_radius" value="8" min="0" max="64" step="1" required>
+            <small>Rounds the right corners. Use 0 for square corners; short quotes limit the radius to half their height.</small>
+          </label>
           <label class="check"><input type="checkbox" name="smart_quotes"> Use smart quotes in rendered PDF</label>
           <label class="check"><input type="checkbox" name="underline_links" checked> Underline links (recommended for web)</label>
           <div class="full link-color-setting">
