@@ -202,6 +202,7 @@ def _delete_generated_asset(path: Path) -> None:
 
 
 class PdfRenderer:
+    horizontal_rule_re = re.compile(r"(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,}")
     url_re = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
     bare_url_re = re.compile(r"https?://[^\s<]+")
     note_ref_re = re.compile(r"\[\^([^\]]+)\]")
@@ -576,7 +577,7 @@ class PdfRenderer:
                 flush_paragraph()
                 flush_quote()
                 continue
-            if line.strip() == "---":
+            if self.horizontal_rule_re.fullmatch(line.strip()):
                 flush_paragraph()
                 flush_quote()
                 story += [

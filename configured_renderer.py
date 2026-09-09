@@ -442,7 +442,7 @@ class ConfiguredPdfRenderer(PdfRenderer):
                 flush_paragraph()
                 flush_quote()
                 continue
-            if line.strip() == "---":
+            if self.horizontal_rule_re.fullmatch(line.strip()):
                 flush_paragraph()
                 flush_quote()
                 story.extend(
