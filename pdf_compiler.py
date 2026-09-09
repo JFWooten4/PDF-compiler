@@ -53,6 +53,40 @@ class RefParagraph(Paragraph):
         self.outline = outline
         super().__init__(text, style, bulletText=bulletText, **kwargs)
 
+    def draw(self):
+        accent = getattr(self.style, "quoteAccent", None)
+        if accent is not None:
+            self.canv.saveState()
+            x = self.style.leftIndent - 10
+            padding = 6
+            tint = colors.Color(
+                1 - (1 - accent.red) * 0.20,
+                1 - (1 - accent.green) * 0.20,
+                1 - (1 - accent.blue) * 0.20,
+            )
+            self.canv.setFillColor(tint)
+            corner_radius = self.style.quoteCornerRadius
+            right = self.width - self.style.rightIndent + corner_radius
+            bottom, top = -padding, self.height + padding
+            radius = min(corner_radius, (top - bottom) / 2, (right - x) / 2)
+            curve = radius * 0.5522847498
+            background = self.canv.beginPath()
+            background.moveTo(x, bottom)
+            background.lineTo(right - radius, bottom)
+            background.curveTo(right - radius + curve, bottom,
+                               right, bottom + radius - curve, right, bottom + radius)
+            background.lineTo(right, top - radius)
+            background.curveTo(right, top - radius + curve,
+                               right - radius + curve, top, right - radius, top)
+            background.lineTo(x, top)
+            background.close()
+            self.canv.drawPath(background, stroke=0, fill=1)
+            self.canv.setStrokeColor(accent)
+            self.canv.setLineWidth(2)
+            self.canv.line(x, -padding, x, self.height + padding)
+            self.canv.restoreState()
+        super().draw()
+
 
 class TrackingDoc(SimpleDocTemplate):
     def __init__(self, *args, **kwargs):
@@ -353,13 +387,12 @@ class PdfRenderer:
             ParagraphStyle(
                 "QuoteX",
                 parent=styles["BodyX"],
-                leftIndent=0.28 * inch,
-                rightIndent=0.18 * inch,
-                borderColor=colors.HexColor("#AAB2BD"),
-                borderWidth=0.6,
-                borderPadding=6,
-                spaceBefore=5,
-                spaceAfter=7,
+                leftIndent=0.25 * inch,
+                rightIndent=0.18 * inch + 10,
+                quoteAccent=colors.HexColor(self.link_color),
+                quoteCornerRadius=10,
+                spaceBefore=18,
+                spaceAfter=20,
             )
         )
         styles.add(
